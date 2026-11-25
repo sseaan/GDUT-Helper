@@ -1,0 +1,69 @@
+<!--
+  脱敏样例：广工教务系统全学期课表接口
+  端点：GET https://jxfw.gdut.edu.cn/xsgrkbcx!xsAllKbList.action?xnxqdm=202601
+  真实响应为 HTML，内嵌 `var kbxx = [...];`。
+
+  数据约定（来自公开接口调研，非真实账号数据）：
+  - zcs / jcdm2 为逗号分隔字符串，顺序可能乱；
+  - jxcdmcs 可能包含多个教室；
+  - teaxms 可能带 [主讲] 后缀；
+  - kcrwdm 仅全学期接口提供。
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>学生个人课表</title>
+</head>
+<body>
+<div id="kbxx"></div>
+<script type="text/javascript">
+  var kbxx = [
+    {
+      "kcmc": "高等数学A",
+      "kcbh": "MATH1001",
+      "jxbmc": "2026级计算机1班",
+      "jcdm2": "01,02",
+      "zcs": "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
+      "xq": "1",
+      "jxcdmcs": "教1-201",
+      "teaxms": "张老师[主讲]",
+      "kcrwdm": "T202601001"
+    },
+    {
+      "kcmc": "大学英语",
+      "kcbh": "ENG1002",
+      "jxbmc": "2026级计算机1班",
+      "jcdm2": "03,04",
+      "zcs": "15,3,5,2,4,6,7,8,9,10,11,12,13,14",
+      "xq": "3",
+      "jxcdmcs": "教2-305",
+      "teaxms": "李老师",
+      "kcrwdm": "T202601002"
+    },
+    {
+      "kcmc": "数据结构",
+      "kcbh": "CS2001",
+      "jxbmc": "2026级计算机1班",
+      "jcdm2": "05,06",
+      "zcs": "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
+      "xq": "2",
+      "jxcdmcs": "工1-413,工1-415",
+      "teaxms": "王老师,赵老师",
+      "kcrwdm": "T202601003"
+    },
+    {
+      "kcmc": "体育（篮球）",
+      "kcbh": "PE1003",
+      "jxbmc": "2026级计算机1班",
+      "jcdm2": "07,08",
+      "zcs": "10,12,11",
+      "xq": "5",
+      "jxcdmcs": "体育馆",
+      "teaxms": "陈老师",
+      "kcrwdm": "T202601004"
+    }
+  ];
+</script>
+</body>
+</html>

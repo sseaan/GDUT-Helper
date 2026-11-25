@@ -1,0 +1,21 @@
+{
+  "_comment": "脱敏样例：GET https://jwcwx.gdut.edu.cn/free-class-room/buildingData?jwCode= 的返回。",
+  "code": 0,
+  "message": "成功",
+  "data": [
+    {
+      "jzwbh": "05",
+      "jzwdm": "0005",
+      "jzwmc": "教学三号楼(城)",
+      "szxqdm": "1",
+      "xqmc": "大学城校区"
+    },
+    {
+      "jzwbh": "29",
+      "jzwdm": "0029",
+      "jzwmc": "教学楼",
+      "szxqdm": "2",
+      "xqmc": "龙洞校区"
+    }
+  ]
+}

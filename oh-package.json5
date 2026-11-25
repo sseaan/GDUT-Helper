@@ -1,0 +1,6 @@
+{
+  "modelVersion": "26.0.1",
+  "description": "GDUT-Helper: a local-first campus helper for GDUT students on HarmonyOS.",
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,576 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "工大助手主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "工大助手应用入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "工大助手"
+    },
+    {
+      "name": "today_card_label",
+      "value": "今日课程卡片"
+    },
+    {
+      "name": "today_card_display_name",
+      "value": "今日课程"
+    },
+    {
+      "name": "today_card_desc",
+      "value": "展示今日课程、下一节课与本周课表"
+    },
+    {
+      "name": "permission_read_calendar_reason",
+      "value": "用于将课程同步到系统日历并读取已有日程"
+    },
+    {
+      "name": "permission_write_calendar_reason",
+      "value": "用于将课程和考试写入系统日历"
+    },
+    {
+      "name": "tab_today",
+      "value": "今日"
+    },
+    {
+      "name": "tab_timetable",
+      "value": "课表"
+    },
+    {
+      "name": "tab_calendar",
+      "value": "日历"
+    },
+    {
+      "name": "tab_campus",
+      "value": "校园"
+    },
+    {
+      "name": "settings",
+      "value": "设置"
+    },
+    {
+      "name": "settings_title",
+      "value": "设置"
+    },
+    {
+      "name": "semester_unset",
+      "value": "未设置学期"
+    },
+    {
+      "name": "today_empty_title",
+      "value": "还没有课表"
+    },
+    {
+      "name": "today_empty_desc",
+      "value": "完成教务同步或手动添加课程后，这里会显示今天的安排。"
+    },
+    {
+      "name": "today_add_course",
+      "value": "手动添加课程"
+    },
+    {
+      "name": "today_import",
+      "value": "从教务导入"
+    },
+    {
+      "name": "today_next_title",
+      "value": "接下来"
+    },
+    {
+      "name": "today_next_empty",
+      "value": "暂无下一节课"
+    },
+    {
+      "name": "today_next_hint",
+      "value": "课程数据接入后，这里会显示下一节课的时间、地点和教师。"
+    },
+    {
+      "name": "week_label",
+      "value": "第 %d 周"
+    },
+    {
+      "name": "timetable_empty_hint",
+      "value": "M1 将接入学期、节次和课程数据；当前仅展示空课表骨架。"
+    },
+    {
+      "name": "timetable_empty_title",
+      "value": "暂无课程"
+    },
+    {
+      "name": "calendar_empty_title",
+      "value": "当天暂无安排"
+    },
+    {
+      "name": "calendar_empty_desc",
+      "value": "课程、考试和日程将在接入数据后显示在这里。"
+    },
+    {
+      "name": "campus_services",
+      "value": "校园服务"
+    },
+    {
+      "name": "campus_more",
+      "value": "更多"
+    },
+    {
+      "name": "campus_grades",
+      "value": "成绩与 GPA"
+    },
+    {
+      "name": "campus_grades_desc",
+      "value": "学期成绩、学分与加权 GPA"
+    },
+    {
+      "name": "campus_physical",
+      "value": "体测成绩"
+    },
+    {
+      "name": "campus_physical_desc",
+      "value": "各学年体测报告与总分"
+    },
+    {
+      "name": "campus_classroom",
+      "value": "空教室"
+    },
+    {
+      "name": "campus_classroom_desc",
+      "value": "按教学楼和节次查询空闲教室"
+    },
+    {
+      "name": "campus_sync",
+      "value": "教务同步"
+    },
+    {
+      "name": "campus_sync_desc",
+      "value": "登录教务并预览课表变更"
+    },
+    {
+      "name": "campus_settings",
+      "value": "设置"
+    },
+    {
+      "name": "settings_semester",
+      "value": "当前学期"
+    },
+    {
+      "name": "settings_theme",
+      "value": "主题"
+    },
+    {
+      "name": "settings_theme_value",
+      "value": "跟随系统"
+    },
+    {
+      "name": "settings_immersive",
+      "value": "沉浸光感"
+    },
+    {
+      "name": "settings_gesture",
+      "value": "智感握姿"
+    },
+    {
+      "name": "settings_gesture_value",
+      "value": "日历新增按钮自适应"
+    },
+    {
+      "name": "settings_hint",
+      "value": "数据仅保存在本机；代理提醒受系统签名权益限制，失败时可使用系统日历同步。"
+    },
+    {
+      "name": "placeholder_title",
+      "value": "功能建设中"
+    },
+    {
+      "name": "placeholder_desc",
+      "value": "该功能将在后续里程碑接入，当前页面用于验证导航与返回行为。"
+    },
+    {
+      "name": "tab_profile",
+      "value": "我的"
+    },
+    {
+      "name": "profile_subtitle",
+      "value": "本地优先的校园助手"
+    },
+    {
+      "name": "calendar_month",
+      "value": "月"
+    },
+    {
+      "name": "calendar_week",
+      "value": "周"
+    },
+    {
+      "name": "calendar_event_count",
+      "value": "%d 项日程"
+    },
+    {
+      "name": "classroom_title",
+      "value": "空教室"
+    },
+    {
+      "name": "classroom_free_only",
+      "value": "仅看空闲"
+    },
+    {
+      "name": "classroom_building",
+      "value": "番禺校区 · 教学楼"
+    },
+    {
+      "name": "classroom_seats",
+      "value": "%d座"
+    },
+    {
+      "name": "classroom_free",
+      "value": "空闲"
+    },
+    {
+      "name": "classroom_summary",
+      "value": "共 %d 间 · %d 间空闲"
+    },
+    {
+      "name": "today_courses",
+      "value": "今日课程"
+    },
+    {
+      "name": "campus_more_services",
+      "value": "更多服务"
+    },
+    {
+      "name": "campus_more_services_desc",
+      "value": "更多校园服务入口"
+    },
+    {
+      "name": "timetable_add",
+      "value": "添加课程"
+    },
+    {
+      "name": "timetable_edit",
+      "value": "编辑课表"
+    },
+    {
+      "name": "course_basic_info",
+      "value": "基本信息"
+    },
+    {
+      "name": "course_name",
+      "value": "课程名称"
+    },
+    {
+      "name": "course_name_hint",
+      "value": "例如：高等数学(1)"
+    },
+    {
+      "name": "course_teacher",
+      "value": "教师"
+    },
+    {
+      "name": "course_teacher_hint",
+      "value": "例如：莫荣华"
+    },
+    {
+      "name": "course_room",
+      "value": "教室"
+    },
+    {
+      "name": "course_room_hint",
+      "value": "例如：教-103"
+    },
+    {
+      "name": "course_schedule",
+      "value": "上课安排"
+    },
+    {
+      "name": "course_weekday",
+      "value": "星期"
+    },
+    {
+      "name": "course_period_start",
+      "value": "开始节次"
+    },
+    {
+      "name": "course_period_end",
+      "value": "结束节次"
+    },
+    {
+      "name": "course_weeks",
+      "value": "上课周次"
+    },
+    {
+      "name": "course_color",
+      "value": "课程颜色"
+    },
+    {
+      "name": "course_note",
+      "value": "备注"
+    },
+    {
+      "name": "course_note_hint",
+      "value": "可选"
+    },
+    {
+      "name": "course_save",
+      "value": "保存"
+    },
+    {
+      "name": "course_create",
+      "value": "创建课程"
+    },
+    {
+      "name": "course_delete",
+      "value": "删除课程"
+    },
+    {
+      "name": "course_add_title",
+      "value": "添加课程"
+    },
+    {
+      "name": "course_edit_title",
+      "value": "编辑课程"
+    },
+    {
+      "name": "course_detail_title",
+      "value": "课程详情"
+    },
+    {
+      "name": "course_source",
+      "value": "来源"
+    },
+    {
+      "name": "course_cancel_week",
+      "value": "本周停课"
+    },
+    {
+      "name": "course_reschedule_week",
+      "value": "本周调课"
+    },
+    {
+      "name": "course_restore_week",
+      "value": "恢复本周课程"
+    },
+    {
+      "name": "course_edit_action",
+      "value": "编辑课程"
+    },
+    {
+      "name": "course_save_adjust",
+      "value": "保存本周调整"
+    },
+    {
+      "name": "semester_title",
+      "value": "学期设置"
+    },
+    {
+      "name": "semester_current",
+      "value": "当前学期"
+    },
+    {
+      "name": "semester_current_hint",
+      "value": "M1 先支持每台设备一个当前学期；更换学期可后续扩展。"
+    },
+    {
+      "name": "semester_back",
+      "value": "返回"
+    },
+    {
+      "name": "semester_name",
+      "value": "学期名称"
+    },
+    {
+      "name": "semester_start_date",
+      "value": "开学日期（第 1 周周一）"
+    },
+    {
+      "name": "semester_total_weeks",
+      "value": "总周数"
+    },
+    {
+      "name": "semester_hint",
+      "value": "开学日期用于计算周次，创建后仍可修改。"
+    },
+    {
+      "name": "semester_create",
+      "value": "创建学期"
+    },
+    {
+      "name": "profile_sync_hint",
+      "value": "教务同步"
+    },
+    {
+      "name": "today_no_semester_title",
+      "value": "还没有学期"
+    },
+    {
+      "name": "today_no_semester_desc",
+      "value": "先创建当前学期和开学日期，再手动添加课程。"
+    },
+    {
+      "name": "today_create_semester",
+      "value": "创建学期"
+    },
+    {
+      "name": "timetable_no_semester_title",
+      "value": "还没有学期"
+    },
+    {
+      "name": "timetable_no_semester_desc",
+      "value": "先创建学期，再添加或导入课程。"
+    },
+    {
+      "name": "cancel",
+      "value": "取消"
+    },
+    {
+      "name": "calendar_add_title",
+      "value": "准备做什么？"
+    },
+    {
+      "name": "calendar_add_course_desc",
+      "value": "手动创建一门课程"
+    },
+    {
+      "name": "calendar_add_event",
+      "value": "添加日程"
+    },
+    {
+      "name": "calendar_add_event_desc",
+      "value": "考试、会议或其他安排"
+    },
+    {
+      "name": "sync_title",
+      "value": "教务系统"
+    },
+    {
+      "name": "sync_account",
+      "value": "教务账号"
+    },
+    {
+      "name": "sync_student_no",
+      "value": "学号"
+    },
+    {
+      "name": "sync_term",
+      "value": "学期"
+    },
+    {
+      "name": "sync_last_full",
+      "value": "上次全量同步"
+    },
+    {
+      "name": "sync_last_week",
+      "value": "上次每周更新"
+    },
+    {
+      "name": "sync_result",
+      "value": "结果"
+    },
+    {
+      "name": "sync_select_term",
+      "value": "选择同步学期"
+    },
+    {
+      "name": "semester_term_code",
+      "value": "教务学期代码（如 202601）"
+    },
+    {
+      "name": "sync_login",
+      "value": "登录教务"
+    },
+    {
+      "name": "sync_logged_in",
+      "value": "已登录"
+    },
+    {
+      "name": "sync_not_logged_in",
+      "value": "未登录"
+    },
+    {
+      "name": "sync_term_code",
+      "value": "教务学期代码"
+    },
+    {
+      "name": "sync_term_code_tip",
+      "value": "如 202601；同步时自动校准开学日期"
+    },
+    {
+      "name": "sync_full",
+      "value": "全量同步"
+    },
+    {
+      "name": "sync_next_week",
+      "value": "同步下周"
+    },
+    {
+      "name": "sync_syncing",
+      "value": "正在同步…"
+    },
+    {
+      "name": "sync_logout",
+      "value": "退出教务登录"
+    },
+    {
+      "name": "sync_login_hint",
+      "value": "完成统一认证后将自动返回"
+    },
+    {
+      "name": "sync_need_login",
+      "value": "请先登录教务系统"
+    },
+    {
+      "name": "sync_need_term",
+      "value": "请先填写教务学期代码"
+    },
+    {
+      "name": "sync_login_title",
+      "value": "教务登录"
+    },
+    {
+      "name": "settings_show_content",
+      "value": "课表显示授课内容"
+    },
+    {
+      "name": "course_content",
+      "value": "授课内容"
+    },
+    {
+      "name": "course_makeup",
+      "value": "补课"
+    },
+    {
+      "name": "event_add_title",
+      "value": "添加日程"
+    },
+    {
+      "name": "event_edit_title",
+      "value": "编辑日程"
+    },
+    {
+      "name": "settings_reminders",
+      "value": "上课与考试提醒"
+    },
+    {
+      "name": "settings_calendar_sync",
+      "value": "同步到系统日历"
+    },
+    {
+      "name": "next_card_display_name",
+      "value": "下一节课"
+    },
+    {
+      "name": "next_card_desc",
+      "value": "显示接下来的一门课"
+    },
+    {
+      "name": "timetable_card_display_name",
+      "value": "本周课表"
+    },
+    {
+      "name": "timetable_card_desc",
+      "value": "显示一周课程概览"
+    }
+  ]
+}

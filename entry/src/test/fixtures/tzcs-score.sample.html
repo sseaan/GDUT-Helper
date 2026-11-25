@@ -1,0 +1,95 @@
+<!--
+  脱敏样例：广工师生云体质测试平台学年成绩页（PHTest_StudentScore.aspx / _H.aspx）。
+  真实页面为 ASP.NET WebForms + layui 表格；本文件只保留解析器需要的结构。
+  学生姓名与学号均为虚构值。
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>2025年体测成绩</title>
+</head>
+<body>
+<h4><b><span id="lblStudentName">测试学生</span></b></h4>
+<h4><span id="lblStudentNO">3124000000</span></h4>
+<table class="layui-table" lay-size="sm" lay-skin="line">
+  <tbody>
+    <tr>
+      <td><b>测试项目</b></td>
+      <td><b>成绩</b></td>
+      <td><b>得分/等级</b></td>
+      <td><b>分值</b></td>
+    </tr>
+    <tr>
+      <td>身高</td>
+      <td><span id="lblHeight" class="div-scroe-value">173.3</span>厘米</td>
+      <td rowspan="2">
+        <span id="lblBMI_Score" class="layui-btn layui-btn-normal layui-btn-xs layui-btn-score">100</span>
+        <span id="lblBMI_Grade" class="layui-btn layui-btn-normal layui-btn-xs layui-btn-grade">正常</span>
+      </td>
+      <td rowspan="2"><span id="lblBMI_SingleScore">15</span></td>
+    </tr>
+    <tr>
+      <td>体重</td>
+      <td><span id="lblWeight" class="div-scroe-value">59.8</span>公斤</td>
+    </tr>
+    <tr>
+      <td>肺活量</td>
+      <td><span id="lblVitalCapacity" class="div-scroe-value">3585</span>毫升</td>
+      <td>
+        <span id="lblVitalCapacity_Score" class="layui-btn layui-btn-xs layui-btn-score">68</span>
+        <span id="lblVitalCapacity_Grade" class="layui-btn layui-btn-xs layui-btn-grade">及格</span>
+      </td>
+      <td><span id="lblVitalCapacity_SingleScore">10.2</span></td>
+    </tr>
+    <tr>
+      <td>50米跑</td>
+      <td><span id="lblFiftyMeterRace" class="div-scroe-value">7.40</span>秒</td>
+      <td>
+        <span id="lblFiftyMeterRace_Score" class="layui-btn layui-btn-xs layui-btn-score">76</span>
+        <span id="lblFiftyMeterRace_Grade" class="layui-btn layui-btn-xs layui-btn-grade">及格</span>
+      </td>
+      <td><span id="lblFiftyMeterRace_SingleScore">15.2</span></td>
+    </tr>
+    <tr>
+      <td>坐位体前屈</td>
+      <td><span id="lblSitAndReach" class="div-scroe-value">18.9</span>厘米</td>
+      <td>
+        <span id="lblSitAndReach_Score" class="layui-btn layui-btn-xs layui-btn-score">80</span>
+        <span id="lblSitAndReach_Grade" class="layui-btn layui-btn-xs layui-btn-grade">良好</span>
+      </td>
+      <td><span id="lblSitAndReach_SingleScore">8</span></td>
+    </tr>
+    <tr>
+      <td>立定跳远</td>
+      <td><span id="lblLongJump" class="div-scroe-value">225</span>厘米</td>
+      <td>
+        <span id="lblLongJump_Score" class="layui-btn layui-btn-xs layui-btn-score">68</span>
+        <span id="lblLongJump_Grade" class="layui-btn layui-btn-xs layui-btn-grade">及格</span>
+      </td>
+      <td><span id="lblLongJump_SingleScore">6.8</span></td>
+    </tr>
+    <tr>
+      <td>引体向上</td>
+      <td><span id="lblChinning" class="div-scroe-value"></span>次</td>
+      <td><span id="lblChinning_Score"></span><span id="lblChinning_Grade"></span></td>
+      <td><span id="lblChinning_SingleScore">0</span></td>
+    </tr>
+    <tr>
+      <td>1000米跑</td>
+      <td><span id="lblKiloMeterRace" class="div-scroe-value">3.49</span>分.秒</td>
+      <td>
+        <span id="lblKiloMeterRace_Score" class="layui-btn layui-btn-xs layui-btn-score">76</span>
+        <span id="lblKiloMeterRace_Grade" class="layui-btn layui-btn-xs layui-btn-grade">及格</span>
+      </td>
+      <td><span id="lblKiloMeterRace_SingleScore">15.2</span></td>
+    </tr>
+    <tr bgcolor="#D9FDD8">
+      <td colspan="2"><b>总分</b></td>
+      <td><b><span id="lblTotalGrade">及格</span></b></td>
+      <td><b><span id="lblTotalScore">70.4</span> 分</b></td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>

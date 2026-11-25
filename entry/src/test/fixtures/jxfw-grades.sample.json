@@ -1,0 +1,58 @@
+{
+  "_comment": "脱敏样例：POST https://jxfw.gdut.edu.cn/xskccjxx!getDataList.action 的分页返回。含正常成绩、缓考占位与尚未出分记录，供 GPA 排除规则测试。",
+  "total": 4,
+  "rows": [
+    {
+      "xnxqdm": "202501",
+      "kcbh": "MATH1001",
+      "kcmc": "高等数学A",
+      "xf": "5",
+      "zcj": "92",
+      "cjjd": "4.2",
+      "kcdlmc": "学科基础课",
+      "kcxzmc": "必修",
+      "xdfsmc": "必修",
+      "ksxzmc": "正常考试",
+      "cjztmc": "正常"
+    },
+    {
+      "xnxqdm": "202501",
+      "kcbh": "ENG1002",
+      "kcmc": "大学英语",
+      "xf": "3",
+      "zcj": "85",
+      "cjjd": "3.5",
+      "kcdlmc": "通识教育课",
+      "kcxzmc": "必修",
+      "xdfsmc": "必修",
+      "ksxzmc": "正常考试",
+      "cjztmc": "正常"
+    },
+    {
+      "xnxqdm": "202502",
+      "kcbh": "CS2001",
+      "kcmc": "数据结构",
+      "xf": "4",
+      "zcj": "缓考",
+      "cjjd": null,
+      "kcdlmc": "专业核心课",
+      "kcxzmc": "必修",
+      "xdfsmc": "必修",
+      "ksxzmc": "缓考",
+      "cjztmc": "缓考"
+    },
+    {
+      "xnxqdm": "202502",
+      "kcbh": "PE1003",
+      "kcmc": "体育（篮球）",
+      "xf": "1",
+      "zcj": "",
+      "cjjd": null,
+      "kcdlmc": "通识教育课",
+      "kcxzmc": "必修",
+      "xdfsmc": "必修",
+      "ksxzmc": "正常考试",
+      "cjztmc": "未出分"
+    }
+  ]
+}

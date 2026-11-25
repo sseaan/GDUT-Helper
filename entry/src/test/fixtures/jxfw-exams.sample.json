@@ -1,0 +1,42 @@
+{
+  "_comment": "脱敏样例：POST https://jxfw.gdut.edu.cn/xsksap!getDataList.action 的返回，schema 来自公开接口调研（202601）。",
+  "total": 2,
+  "rows": [
+    {
+      "ksrcdm": "EXAM202601001",
+      "kcmc": "高等数学A",
+      "kcbh": "MATH1001",
+      "ksrq": "2026-11-27",
+      "kssj": "14:00--16:00",
+      "zc": "13",
+      "xq": "5",
+      "jcdm2": "05,06,07",
+      "kscdmc": "教5-103",
+      "xqmc": "大学城校区",
+      "kslbmc": "正常考试",
+      "ksaplxmc": "学院停课考",
+      "xs": "120",
+      "zwh": "A-023",
+      "jkteaxms": "张老师,李老师",
+      "sjbh": "PAPER202601001"
+    },
+    {
+      "ksrcdm": "EXAM202601002",
+      "kcmc": "数据结构",
+      "kcbh": "CS2001",
+      "ksrq": "2026-12-04",
+      "kssj": "09:00--11:00",
+      "zc": "14",
+      "xq": "5",
+      "jcdm2": "01,02,03",
+      "kscdmc": "工1-413",
+      "xqmc": "大学城校区",
+      "kslbmc": "正常考试",
+      "ksaplxmc": "学院停课考",
+      "xs": "120",
+      "zwh": "",
+      "jkteaxms": "王老师",
+      "sjbh": "PAPER202601002"
+    }
+  ]
+}

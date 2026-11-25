@@ -1,0 +1,37 @@
+{
+  "_comment": "脱敏样例：GET https://jwcwx.gdut.edu.cn/free-class-room/classroomUsedData?jwCode=&jzwdm=0005&rq=2026-10-19 的返回。sytype: 1=课程, 2=借用, 3=锁定, 4=考试。",
+  "code": 0,
+  "message": "成功",
+  "data": [
+    {
+      "dm": "3404218",
+      "jcdm": "020304",
+      "jcdm2": "02,03,04",
+      "jxbmc": "教学班482",
+      "jxcddm": "011030201",
+      "jxcdmc": "教3-201",
+      "kcmc": "电影与深层心理学",
+      "rs": 108,
+      "sknrjj": "五、好莱坞电影的批判性读解",
+      "sytype": "1",
+      "teaxms": "田老师",
+      "xq": "1",
+      "zc": "8"
+    },
+    {
+      "dm": "4757167",
+      "jcdm": "010203040506070809101112",
+      "jcdm2": "01,02,03,04,05,06,07,08,09,10,11,12",
+      "jxbmc": null,
+      "jxcddm": "011030304",
+      "jxcdmc": null,
+      "kcmc": null,
+      "rs": null,
+      "sknrjj": "校园活动彩排",
+      "sytype": "2",
+      "teaxms": "肖老师",
+      "xq": "1",
+      "zc": "8"
+    }
+  ]
+}

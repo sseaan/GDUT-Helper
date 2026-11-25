@@ -1,0 +1,66 @@
+{
+  "forms": [
+    {
+      "name": "today_card",
+      "displayName": "$string:today_card_display_name",
+      "description": "$string:today_card_desc",
+      "src": "./ets/card/pages/TodayCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "isDefault": true,
+      "updateEnabled": true,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2",
+        "4*4"
+      ],
+      "updateDuration": 1
+    },
+    {
+      "name": "next_card",
+      "displayName": "$string:next_card_display_name",
+      "description": "$string:next_card_desc",
+      "src": "./ets/card/pages/NextCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "updateDuration": 1,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2",
+        "4*4"
+      ]
+    },
+    {
+      "name": "timetable_card",
+      "displayName": "$string:timetable_card_display_name",
+      "description": "$string:timetable_card_desc",
+      "src": "./ets/card/pages/TimetableCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "updateDuration": 1,
+      "defaultDimension": "4*4",
+      "supportDimensions": [
+        "4*4"
+      ]
+    }
+  ]
+}
