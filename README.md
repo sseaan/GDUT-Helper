@@ -51,7 +51,7 @@
 - 数据迁移：JSON 备份/恢复、ICS 导出、ICS/XLSX 导入；
 - 沉浸光感：跟随系统 / 精致 / 柔和 / 流畅；
 - 桌面课程卡片与今日卡片；
-- GitHub Actions 构建 unsigned HAP，侧载安装。
+- GitHub Actions 构建 unsigned HAP，下载后本地签名再侧载。
 
 ## 截图
 
