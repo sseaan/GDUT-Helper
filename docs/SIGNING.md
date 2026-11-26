@@ -18,5 +18,6 @@
 - 不要手工替换 `.p7b`，它与证书和华为开发者账号绑定；
 - 当前自动签名 Profile 未开通“代理提醒”权益，真机 ReminderAgent 返回 `1700002`，系统日历提醒与即时本地通知仍可用；
 - 签名材料不要提交到仓库；
-- 本项目 1.1.0 的侧载分发以 GitHub Actions 构建的 unsigned HAP 为主，不依赖 CI 签名。unsigned 构建会移除 `signingConfig`，产物为 `entry-default-unsigned.hap`；
+- 本项目 1.1.0 的 CI 构建产物为 unsigned HAP，不依赖 CI 签名。unsigned 构建会移除 `signingConfig`，产物为 `entry-default-unsigned.hap`；
+- unsigned HAP 不能直接安装：需用本地 DevEco/自动签名对下载的文件重新签名，或使用本地 signed HAP；直接 `hdc install` 会返回 `9568332`；
 - 本地 release 构建仍使用 DevEco 自动签名配置，仅用于模拟器/真机调试。

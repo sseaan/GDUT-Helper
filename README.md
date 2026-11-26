@@ -121,7 +121,10 @@ hdc install -r entry/build/default/outputs/default/entry-default-signed.hap
 - 自动移除本地 `signingConfig`；
 - 构建并上传 `gdut-helper-unsigned-hap` Artifact。
 
-这条路径不接触证书和密码，适合侧载分发。详细签名说明见 [`docs/SIGNING.md`](docs/SIGNING.md)。
+这条路径不接触证书和密码，适合构建留档和后续本地签名。  
+> 注意：HarmonyOS 安装仍要求 HAP 签名；直接 `hdc install` 安装 unsigned HAP 会报 `9568332 install sign info inconsistent`，请用 DevEco/本地自动签名对下载的 HAP 重新签名后再侧载。
+
+详细签名说明见 [`docs/SIGNING.md`](docs/SIGNING.md)。
 
 ### 项目结构
 

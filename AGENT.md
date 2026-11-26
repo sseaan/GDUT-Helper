@@ -259,7 +259,7 @@ XLSX：
 - `.github/workflows/build-unsigned.yml`：push/PR/手动触发；
 - 使用 `ErBWs/setup-ohos@v2` 安装 HarmonyOS SDK；
 - CI 中移除 `signingConfig`，构建 unsigned HAP 并上传 Artifact；
-- 不注入证书/密码，预期分发方式为下载 unsigned HAP 后侧载安装。
+- 不注入证书/密码；ArtiFact 为 unsigned HAP，侧载前需用本地 DevEco/自动签名重新签名，直接 `hdc install` 会报 `9568332`。
 
 ## 8. 发版检查清单
 
