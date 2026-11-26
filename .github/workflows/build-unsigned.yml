@@ -60,6 +60,8 @@ jobs:
           data = json.loads(path.read_text())
           for product in data.get('app', {}).get('products', []):
               product.pop('signingConfig', None)
+              if product.get('targetSdkVersion') == '26.0.1':
+                  product['targetSdkVersion'] = '26.0.0'
           path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
 
           for name in ['hvigor/hvigor-config.json5', 'oh-package.json5']:
