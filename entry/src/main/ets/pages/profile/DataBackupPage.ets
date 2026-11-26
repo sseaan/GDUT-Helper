@@ -6,6 +6,7 @@ import { TimetableState } from '../../state/TimetableState';
 import { BackupBundle, BackupPreview, previewOf } from '../../services/backup/BackupModels';
 import { BackupService } from '../../services/backup/BackupService';
 import { IcsImportService, IcsPreview } from '../../services/importexport/IcsImportService';
+import { IcsExportService, IcsExportResult } from '../../services/importexport/IcsExportService';
 import { XlsxImportService, XlsxPreview } from '../../services/importexport/XlsxImportService';
 import { Event } from '../../domain/model/TimetableModels';
 import { XlsxRow } from '../../services/importexport/XlsxParser';
@@ -17,6 +18,8 @@ interface PreviewLine {
 
 @Component
 export struct DataBackupPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @State busy: boolean = false;
   @State error: string = '';
   @State status: string = '';
@@ -59,6 +62,24 @@ export struct DataBackupPage {
       this.toast('备份已导出');
     } catch (error) {
       this.error = error instanceof Error ? error.message : '导出失败';
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private async exportIcs(): Promise<void> {
+    if (this.busy) {
+      return;
+    }
+    this.busy = true;
+    this.error = '';
+    this.status = '';
+    try {
+      const result: IcsExportResult = await IcsExportService.exportToFile(this.context());
+      this.status = `已导出 ${result.count} 个课程/日程`;
+      this.toast('ICS 课程表已导出');
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : '导出 ICS 失败';
     } finally {
       this.busy = false;
     }
@@ -292,7 +313,7 @@ export struct DataBackupPage {
         Blank()
         Text('关闭')
           .fontSize(AppTheme.FONT_CAPTION)
-          .fontColor(AppTheme.BRAND)
+          .fontColor(this.brandTextColor)
           .onClick(() => { this.showPreview = false; })
       }
       .width('100%')
@@ -390,6 +411,21 @@ export struct DataBackupPage {
             this.actionRow($r('sys.symbol.arrow_clockwise'), '从 JSON 恢复', '先预览数据数量和覆盖范围，再确认恢复', () => this.pickRestore())
             Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
             this.actionRow($r('sys.symbol.exclamationmark_triangle_fill'), '清空本地数据', '删除学期、课程、日程和缓存；保留登录账号与偏好', () => this.confirmClear())
+          }
+          .width('100%')
+          .backgroundColor($r('app.color.profile_card_bg'))
+          .borderRadius(18)
+          .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
+          .border({ width: 0.5, color: '#66FFFFFF' })
+          .clip(true)
+
+          Text('导出课表')
+            .fontSize(AppTheme.FONT_TINY)
+            .fontColor(AppTheme.TEXT_TERTIARY)
+            .width('100%')
+            .padding({ left: 6, top: 2 })
+          Column() {
+            this.actionRow($r('sys.symbol.calendar'), '导出 ICS 课程表', '当前学期的课程、考试和日程，可导入系统日历或其他日历应用', () => this.exportIcs())
           }
           .width('100%')
           .backgroundColor($r('app.color.profile_card_bg'))

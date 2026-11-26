@@ -22,12 +22,13 @@ interface CasLoginPage {
 interface CookieValue {
   name: string;
   value: string;
+  domain: string;
 }
 
 class CookieJar {
   private cookies: CookieValue[] = [];
 
-  addRaw(raw: string): void {
+  addRaw(raw: string, host: string = ''): void {
     if (raw.length === 0) {
       return;
     }
@@ -45,8 +46,9 @@ class CookieJar {
         }
         const name: string = columns[5].trim();
         const value: string = columns.slice(6).join('\t').trim();
+        const domain: string = columns[0].trim();
         if (name.length > 0) {
-          this.put(name, value);
+          this.put(name, value, domain);
         }
       }
       return;
@@ -60,25 +62,56 @@ class CookieJar {
       }
       const name: string = first.substring(0, equals).trim();
       const value: string = first.substring(equals + 1).trim();
-      this.put(name, value);
+      this.put(name, value, host);
     }
   }
 
-  private put(name: string, value: string): void {
-    const existing: CookieValue | undefined = this.cookies.find((item) => item.name === name);
+  private put(name: string, value: string, domain: string): void {
+    const normalized: string = CookieJar.normalizeDomain(domain);
+    const existing: CookieValue | undefined = this.cookies.find((item: CookieValue) =>
+      item.name === name && item.domain === normalized);
     if (existing === undefined) {
-      this.cookies.push({ name: name, value: value });
+      this.cookies.push({ name: name, value: value, domain: normalized });
     } else {
       existing.value = value;
     }
   }
 
-  header(): string {
-    return this.cookies.map((item: CookieValue) => `${item.name}=${item.value}`).join('; ');
+  header(host: string = ''): string {
+    const target: string = CookieJar.normalizeDomain(host);
+    const selected: CookieValue[] = [];
+    for (const item of this.cookies) {
+      if (target.length > 0 && !CookieJar.matches(item.domain, target)) {
+        continue;
+      }
+      const existing: number = selected.findIndex((cookie: CookieValue) => cookie.name === item.name);
+      if (existing < 0) {
+        selected.push(item);
+      } else if (item.domain.length > selected[existing].domain.length) {
+        selected[existing] = item;
+      }
+    }
+    return selected.map((item: CookieValue) => `${item.name}=${item.value}`).join('; ');
   }
 
-  has(name: string): boolean {
-    return this.cookies.some((item: CookieValue) => item.name === name && item.value.length > 0);
+  has(name: string, host: string = ''): boolean {
+    const target: string = CookieJar.normalizeDomain(host);
+    return this.cookies.some((item: CookieValue) => item.name === name &&
+      item.value.length > 0 && (target.length === 0 || CookieJar.matches(item.domain, target)));
+  }
+
+  private static normalizeDomain(domain: string): string {
+    return domain.trim().toLowerCase()
+      .replace(/^#httponly_/, '')
+      .replace(/^\./, '')
+      .replace(/:\d+$/, '');
+  }
+
+  private static matches(cookieDomain: string, host: string): boolean {
+    if (cookieDomain.length === 0) {
+      return true;
+    }
+    return host === cookieDomain || host.endsWith('.' + cookieDomain);
   }
 
 
@@ -175,13 +208,23 @@ export class CasLoginService {
   }
 
   /** Native CAS login for an arbitrary CAS service; returns the resulting Cookie header. */
-  static async loginForService(username: string, password: string, serviceUrl: string): Promise<string> {
+  static async loginForService(username: string, password: string, serviceUrl: string,
+    requiredCookie: string = 'JSESSIONID', bootstrapUrl: string = ''): Promise<string> {
     if (username.trim().length === 0 || password.length === 0) {
       throw new JxfwError('请输入学号和密码', JxfwErrorKind.CREDENTIALS);
     }
     const loginUrl: string = `${AUTH_BASE}/authserver/login?service=${encodeURIComponent(serviceUrl)}`;
     const targetHost: string = CasLoginService.hostOf(serviceUrl);
     const jar: CookieJar = new CookieJar();
+    if (bootstrapUrl.length > 0) {
+      try {
+        const bootstrap = await CasLoginService.request(
+          http.RequestMethod.GET, bootstrapUrl, '', '', jar, '', false);
+        jar.addRaw(bootstrap.cookies, CasLoginService.hostOf(bootstrapUrl));
+      } catch (error) {
+        // Bootstrap cookies are optional; CAS login can still continue.
+      }
+    }
     hilog.info(0x0000, 'CAS', 'login page requested for %{public}s', targetHost);
     const loginPage = await CasLoginService.request(
       http.RequestMethod.GET, loginUrl, '', '', jar, '', false);
@@ -210,7 +253,7 @@ export class CasLoginService {
     const reachedTarget: boolean = post.body.includes('教学管理系统') ||
       post.body.includes('kbxx') || post.body.includes('login!welcome');
     if (post.code === 200 && post.location.length === 0 && reachedTarget) {
-      return jar.header();
+      return jar.header(targetHost);
     }
     if (post.code === 200 && post.location.length === 0) {
       throw loginErrorMessage(post.body);
@@ -219,7 +262,7 @@ export class CasLoginService {
     if (ticketLocation.length === 0) {
       throw loginErrorMessage(post.body);
     }
-    return await CasLoginService.followTicket(ticketLocation, jar, targetHost);
+    return await CasLoginService.followTicket(ticketLocation, jar, targetHost, requiredCookie);
   }
 
   static async autoLogin(): Promise<boolean> {
@@ -256,17 +299,80 @@ export class CasLoginService {
     }
   }
 
-  private static async followTicket(location: string, jar: CookieJar, targetHost: string): Promise<string> {
+  private static urlParam(url: string, name: string): string {
+    const marker: string = `${name}=`;
+    let index: number = url.indexOf(marker);
+    if (index < 0) {
+      return '';
+    }
+    index += marker.length;
+    let end: number = url.indexOf('&', index);
+    if (end < 0) {
+      end = url.indexOf('#', index);
+    }
+    if (end < 0) {
+      end = url.length;
+    }
+    try {
+      return decodeURIComponent(url.substring(index, end));
+    } catch (error) {
+      return url.substring(index, end);
+    }
+  }
+
+  private static jwtCookieFromText(text: string): string {
+    if (text.length === 0) {
+      return '';
+    }
+    const jwt: string = CasLoginService.urlParam(text, 'jwt');
+    if (jwt.length === 0) {
+      return '';
+    }
+    const header: string = CasLoginService.urlParam(text, 'jwtHeader');
+    return `jwt=${jwt}; jwtHeader=${header.length > 0 ? header : 'jwtOpacAuth'}`;
+  }
+
+  private static async followTicket(location: string, jar: CookieJar, targetHost: string,
+    requiredCookie: string): Promise<string> {
     let url: string = CasLoginService.normalizeTargetUrl(location);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
+      const urlJwt: string = CasLoginService.jwtCookieFromText(url);
+      if (urlJwt.length > 0) {
+        jar.addRaw(urlJwt, targetHost);
+        return jar.header(targetHost);
+      }
       const response = await CasLoginService.request(
         http.RequestMethod.GET, url, '', LOGIN_URL, jar, '', true);
+      const locationJwt: string = CasLoginService.jwtCookieFromText(response.location);
+      if (locationJwt.length > 0) {
+        jar.addRaw(locationJwt, targetHost);
+        return jar.header(targetHost);
+      }
+      if (targetHost.includes('opac') && response.code === 200 && response.body.length > 0) {
+        const passport: RegExpExecArray | null =
+          /https:\/\/passport2\.chaoxing\.com\/api\/v2\/casreceive\?[^"']+/.exec(response.body);
+        if (passport !== null) {
+          url = CasLoginService.normalizeTargetUrl(passport[0].replace(/&amp;/g, '&'));
+          continue;
+        }
+        const findMatch: RegExpExecArray | null =
+          /https?:\/\/opac\.gdut\.edu\.cn\/find\/sso\/login[^"\s<]+/.exec(response.body);
+        if (findMatch !== null) {
+          url = CasLoginService.normalizeTargetUrl(findMatch[0]);
+          continue;
+        }
+        const bodyJwt: string = CasLoginService.jwtCookieFromText(response.body);
+        if (bodyJwt.length > 0) {
+          jar.addRaw(bodyJwt, targetHost);
+          return jar.header(targetHost);
+        }
+      }
       if (response.code >= 300 && response.code < 400 && response.location.length > 0) {
         url = CasLoginService.normalizeTargetUrl(CasLoginService.resolveUrl(url, response.location));
         continue;
       }
-      if (CasLoginService.hostOf(url) === targetHost && jar.has('JSESSIONID')) {
-        return jar.header();
+      if (CasLoginService.hostOf(url) === targetHost && jar.has(requiredCookie, targetHost)) {
+        return jar.header(targetHost);
       }
       if (response.code === 200) {
         throw new JxfwError('统一认证已通过，但目标系统会话建立失败', JxfwErrorKind.PROTOCOL);
@@ -365,7 +471,7 @@ export class CasLoginService {
         headers['Content-Type'] = contentType;
       }
       if (includeCookies) {
-        headers['Cookie'] = jar.header();
+        headers['Cookie'] = jar.header(CasLoginService.hostOf(url));
       }
       const response = await client.request(url, {
         method: method,
@@ -378,19 +484,21 @@ export class CasLoginService {
       });
       const cookies: string = response.cookies.length > 0
         ? response.cookies : headerValue(response, 'set-cookie');
-      jar.addRaw(cookies);
+      const host: string = CasLoginService.hostOf(url);
+      jar.addRaw(cookies, host);
       const text: string = typeof response.result === 'string' ? response.result : '';
       return {
         code: response.responseCode,
         body: text,
-        location: headerValue(response, 'location')
+        location: headerValue(response, 'location'),
+        cookies: cookies
       };
     } catch (error) {
       if (redirectHeaders !== null) {
         const location: string = headerValueFromObject(redirectHeaders, 'location');
         if (location.length > 0) {
-          jar.addRaw(headerValueFromObject(redirectHeaders, 'set-cookie'));
-          return { code: 302, body: '', location: location };
+          jar.addRaw(headerValueFromObject(redirectHeaders, 'set-cookie'), CasLoginService.hostOf(url));
+          return { code: 302, body: '', location: location, cookies: '' };
         }
       }
       const be: BusinessError = error as BusinessError;
@@ -410,4 +518,5 @@ interface CasHttpResponse {
   code: number;
   body: string;
   location: string;
+  cookies: string;
 }

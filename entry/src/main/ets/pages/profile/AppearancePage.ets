@@ -4,9 +4,13 @@ import { AppTheme } from '../../common/Theme';
 import { ImmersiveMaterial } from '../../common/ImmersiveMaterial';
 import { immersiveTitleBar } from '../../common/TitleBarOptions';
 import { AppearanceSettings, ThemeMode } from '../../state/AppearanceSettings';
+import { ThemeColor, ThemeColorId, ThemeColorOption } from '../../common/ThemeColor';
 
 @Component
 struct AppearanceToggleRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop icon: Resource;
   @Prop title: string = '';
   @Prop detail: string = '';
@@ -33,6 +37,7 @@ struct AppearanceToggleRow {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
       Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+        .selectedColor(this.brandTextColor)
         .enabled(this.isAvailable)
         .opacity(this.isAvailable ? 1 : 0.45)
         .onChange((value: boolean) => this.onToggle(value))
@@ -45,8 +50,13 @@ struct AppearanceToggleRow {
 
 @Component
 export struct AppearancePage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @State mode: ThemeMode = ThemeMode.SYSTEM;
+  @StorageLink('themeColorId') themeColorId: string = ThemeColor.DEFAULT;
   @State immersiveEnabled: boolean = true;
+  @State materialLevel: number = 10;
   @State handednessEnabled: boolean = true;
 
   aboutToAppear(): void {
@@ -59,13 +69,54 @@ export struct AppearancePage {
 
   private async load(): Promise<void> {
     this.mode = await AppearanceSettings.load(this.context());
+    this.themeColorId = AppearanceSettings.themeColorId();
     this.immersiveEnabled = AppearanceSettings.immersiveEnabled();
+    this.materialLevel = AppearanceSettings.materialLevel();
     this.handednessEnabled = AppearanceSettings.handednessEnabled();
   }
 
   private async selectMode(mode: ThemeMode): Promise<void> {
     this.mode = mode;
     await AppearanceSettings.set(this.context(), mode);
+  }
+
+  private async selectThemeColor(id: string): Promise<void> {
+    this.themeColorId = id;
+    this.brandColor = ThemeColor.of(id);
+    this.onBrandColor = ThemeColor.onBrand(id);
+    await AppearanceSettings.setThemeColor(this.context(), id);
+  }
+
+  private async selectMaterialLevel(level: number): Promise<void> {
+    this.materialLevel = level;
+    await AppearanceSettings.setMaterialLevel(this.context(), level);
+  }
+
+  private materialLevelLabel(level: number): string {
+    if (level === 0) {
+      return '精致';
+    }
+    if (level === 1) {
+      return '柔和';
+    }
+    if (level === 2) {
+      return '流畅';
+    }
+    return '跟随系统';
+  }
+
+  @Builder
+  materialLevelOption(level: number, label: string) {
+    Text(label)
+      .fontSize(AppTheme.FONT_CAPTION)
+      .fontWeight(this.materialLevel === level ? FontWeight.Medium : FontWeight.Normal)
+      .fontColor(this.materialLevel === level ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
+      .height(42)
+      .layoutWeight(1)
+      .textAlign(TextAlign.Center)
+      .backgroundColor(this.materialLevel === level ? this.brandColor : AppTheme.BG)
+      .borderRadius(12)
+      .onClick(() => this.selectMaterialLevel(level))
   }
 
   private modeLabel(mode: ThemeMode): string {
@@ -92,11 +143,11 @@ export struct AppearancePage {
     Column({ space: 6 }) {
       Text(this.modeLabel(mode))
         .fontSize(AppTheme.FONT_CAPTION)
-        .fontColor(this.mode === mode ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+        .fontColor(this.mode === mode ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
       if (this.mode === mode) {
         SymbolGlyph($r('sys.symbol.checkmark'))
           .fontSize(12)
-          .fontColor([AppTheme.ON_BRAND])
+          .fontColor([this.onBrandColor])
       } else {
         Column().height(12)
       }
@@ -104,7 +155,7 @@ export struct AppearancePage {
     .layoutWeight(1)
     .height(92)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.mode === mode ? AppTheme.BRAND : AppTheme.CARD_BG)
+    .backgroundColor(this.mode === mode ? this.brandColor : AppTheme.CARD_BG)
     .borderRadius(14)
     .onClick(() => this.selectMode(mode))
   }
@@ -151,15 +202,58 @@ export struct AppearancePage {
           .width('100%')
 
           this.sectionLabel('主题色')
-          Column() {
-            this.infoRow($r('sys.symbol.eye'), '主题色', '跟随系统', '主题色由系统设置中的强调色决定')
+          Column({ space: 12 }) {
+            Row({ space: 8 }) {
+              ForEach(ThemeColor.OPTIONS, (option: ThemeColorOption) => {
+                Column({ space: 6 }) {
+                  Stack() {
+                    Circle()
+                      .width(38)
+                      .height(38)
+                      .fill(option.value)
+                    if (this.themeColorId === option.id) {
+                      SymbolGlyph($r('sys.symbol.checkmark'))
+                        .fontSize(17)
+                        .fontColor([this.onBrandColor])
+                    }
+                  }
+                  .width(44)
+                  .height(44)
+                  .borderRadius(22)
+                  .border({
+                    width: this.themeColorId === option.id ? 2 : 0,
+                    color: this.brandColor
+                  })
+                  .align(Alignment.Center)
+                  Text(option.name)
+                    .fontSize(AppTheme.FONT_CAPTION)
+                    .fontWeight(this.themeColorId === option.id ? FontWeight.Medium : FontWeight.Normal)
+                    .fontColor(this.themeColorId === option.id ? this.brandTextColor : AppTheme.TEXT_PRIMARY)
+                  Text(option.detail)
+                    .fontSize(AppTheme.FONT_TINY)
+                    .fontColor(AppTheme.TEXT_TERTIARY)
+                }
+                .layoutWeight(1)
+                .padding({ top: 12, bottom: 12 })
+                .backgroundColor(this.themeColorId === option.id
+                  ? ThemeColor.alpha(this.brandColor, 0.08) : Color.Transparent)
+                .borderRadius(14)
+                .onClick(() => this.selectThemeColor(option.id))
+              }, (option: ThemeColorOption) => option.id)
+            }
+            .width('100%')
+            Text('主题色会应用到按钮、选中态、课程高亮和悬浮栏光效。')
+              .fontSize(AppTheme.FONT_TINY)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .lineHeight(17)
           }
           .width('100%')
+          .padding(16)
           .backgroundColor($r('app.color.profile_card_bg'))
           .borderRadius(18)
           .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
           .border({ width: 0.5, color: '#66FFFFFF' })
-          .clip(true)
 
           this.sectionLabel('材质与动效')
           Column() {
@@ -174,6 +268,34 @@ export struct AppearancePage {
                 await AppearanceSettings.setImmersive(this.context(), value);
               }
             })
+            if (this.immersiveEnabled && ImmersiveMaterial.supported()) {
+              Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
+              Column({ space: 8 }) {
+                Row() {
+                  Text('光感强度')
+                    .fontSize(AppTheme.FONT_BODY)
+                    .fontColor(AppTheme.TEXT_PRIMARY)
+                  Blank()
+                  Text(this.materialLevelLabel(this.materialLevel))
+                    .fontSize(AppTheme.FONT_TINY)
+                    .fontColor(AppTheme.TEXT_SECONDARY)
+                }
+                .width('100%')
+                Row({ space: 6 }) {
+                  this.materialLevelOption(10, '跟随系统')
+                  this.materialLevelOption(0, '精致')
+                  this.materialLevelOption(1, '柔和')
+                  this.materialLevelOption(2, '流畅')
+                }
+                .width('100%')
+                Text('跟随系统会按设备能力自动选择材质精细度。')
+                  .fontSize(AppTheme.FONT_TINY)
+                  .fontColor(AppTheme.TEXT_TERTIARY)
+                  .width('100%')
+              }
+              .width('100%')
+              .padding({ left: 16, right: 16, top: 10, bottom: 14 })
+            }
             Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
             AppearanceToggleRow({
               icon: $r('sys.symbol.checkmark'),
@@ -193,7 +315,7 @@ export struct AppearancePage {
           .border({ width: 0.5, color: '#66FFFFFF' })
           .clip(true)
 
-          Text('主题模式会立即应用并保存，下次启动时自动恢复。')
+          Text('主题模式与主题色会立即应用并保存，下次启动时自动恢复。')
             .fontSize(AppTheme.FONT_TINY)
             .fontColor(AppTheme.TEXT_TERTIARY)
             .width('100%')

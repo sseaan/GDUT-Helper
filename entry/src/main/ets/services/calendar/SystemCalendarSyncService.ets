@@ -72,6 +72,25 @@ export class SystemCalendarSyncService {
     }
   }
 
+  private static eventTitle(item: AgendaItem): string {
+    if (item.course !== null && item.course.name.length > 0) {
+      return item.course.name;
+    }
+    return item.title;
+  }
+
+  private static eventDescription(item: AgendaItem): string {
+    const parts: string[] = [];
+    if (item.location.length > 0) {
+      parts.push(item.location);
+    }
+    if (item.course !== null && item.course.teacher.length > 0) {
+      parts.push(item.course.teacher);
+    }
+    parts.push('GDUT Helper');
+    return parts.join(' · ');
+  }
+
   private static async refreshInternal(context: common.Context): Promise<number> {
     if (AppStorage.get<boolean>(CALENDAR_SYNC_KEY) !== true) {
       return 0;
@@ -100,12 +119,12 @@ export class SystemCalendarSyncService {
         try {
           const id: number = await calendar.addEvent({
             type: calendarManager.EventType.NORMAL,
-            title: `[GDUT] ${item.title}`,
+            title: SystemCalendarSyncService.eventTitle(item),
             startTime: item.startTime,
             endTime: item.endTime,
             isAllDay: item.allDay,
             location: { location: item.location },
-            description: item.subtitle,
+            description: SystemCalendarSyncService.eventDescription(item),
             reminderTime: [item.kind === AgendaKind.EXAM ? 30 : 10]
           });
           ids.push(id);

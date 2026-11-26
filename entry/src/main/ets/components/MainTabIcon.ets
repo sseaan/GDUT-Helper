@@ -7,6 +7,8 @@ import { AppTheme } from '../common/Theme';
  */
 @Component
 export struct MainTabIcon {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop title: ResourceStr = '';
   @Prop icon: Resource = $r('sys.symbol.clock');
   @Prop active: boolean = false;
@@ -19,7 +21,7 @@ export struct MainTabIcon {
           .fontSize(AppTheme.TAB_SYMBOL_SIZE)
           .renderingStrategy(SymbolRenderingStrategy.SINGLE)
           .fontColor([
-            this.active ? AppTheme.BRAND : $r('sys.color.font_secondary')
+            this.active ? this.brandTextColor : $r('sys.color.font_secondary')
           ])
       }
       .width(AppTheme.TAB_ICON_BOX)
@@ -29,7 +31,7 @@ export struct MainTabIcon {
 
       Text(this.title)
         .fontSize(AppTheme.FONT_TINY)
-        .fontColor(this.active ? AppTheme.BRAND : $r('sys.color.font_secondary'))
+        .fontColor(this.active ? this.brandTextColor : $r('sys.color.font_secondary'))
         .maxLines(1)
     }
     .alignItems(HorizontalAlign.Center)

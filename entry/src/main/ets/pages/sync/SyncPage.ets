@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { HdsNavDestination, HdsNavDestinationTitleMode } from '@kit.UIDesignKit';
 import { AppTheme } from '../../common/Theme';
+import { ThemeColor } from '../../common/ThemeColor';
 import { immersiveTitleBar } from '../../common/TitleBarOptions';
 import { Semester } from '../../domain/model/TimetableModels';
 import { SyncPlan } from '../../domain/model/SyncPlan';
@@ -12,11 +13,17 @@ import { JxfwSession } from '../../services/jxfw/JxfwSession';
 import { CasLoginService } from '../../services/jxfw/CasLoginService';
 import { CredentialsStore, SavedCredentials } from '../../services/jxfw/CredentialsStore';
 import { JxfwError, JxfwErrorKind, SyncSummary } from '../../services/jxfw/JxfwModels';
+import { JxfwProfileService } from '../../services/jxfw/JxfwProfileService';
+import { PortalService } from '../../services/portal/PortalService';
+import { isValidTermCode, surroundingTermCodes, termLabel } from '../../services/jxfw/JxfwTerms';
 import { TimetableState } from '../../state/TimetableState';
-import { weekOf } from '../../domain/timetable/TimetableEngine';
+import { todayIso, weekOf } from '../../domain/timetable/TimetableEngine';
 
 @Component
 struct SyncInfoRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop label: ResourceStr = '';
   @Prop value: string = '';
 
@@ -39,10 +46,18 @@ struct SyncInfoRow {
 
 @Component
 export struct SyncPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @StorageLink('jxfwSessionRevision') @Watch('onSessionChange') sessionRevision: number = 0;
   @StorageLink('autoSyncEnabled') autoSync: boolean = false;
   @State semester: Semester | null = null;
-  @State termCode: string = '';
+  @State semesters: Semester[] = [];
+  @State termOptions: string[] = [];
+  @State selectedTerm: string = '';
+  @State selectedExisting: Semester | null = null;
+  @State previewSemester: Semester | null = null;
+  @State studentName: string = '';
   @State username: string = '';
   @State password: string = '';
   @State savedAccount: boolean = false;
@@ -54,7 +69,6 @@ export struct SyncPage {
   @State lastWeek: string = '—';
   @State result: string = '尚未同步';
   @State error: string = '';
-  @State semesterLabel: string = '未创建学期';
   @State plan: SyncPlan | null = null;
   @State showPreview: boolean = false;
   @State applying: boolean = false;
@@ -84,15 +98,37 @@ export struct SyncPage {
 
   private async load(): Promise<void> {
     try {
+      this.semesters = await TimetableRepository.listSemesters(this.context());
       this.semester = await TimetableRepository.getCurrentSemester(this.context());
-      this.semesterLabel = this.semester === null ? '未创建学期' : this.semester.name;
-      if (this.semester !== null) {
-        this.termCode = this.semester.termCode.length > 0 ? this.semester.termCode : '202601';
+      const candidates: string[] = surroundingTermCodes(new Date());
+      if (this.semester !== null && isValidTermCode(this.semester.termCode) &&
+        candidates.indexOf(this.semester.termCode.trim()) < 0) {
+        candidates.push(this.semester.termCode.trim());
       }
+      for (const item of this.semesters) {
+        const code: string = item.termCode.trim();
+        if (isValidTermCode(code) && candidates.indexOf(code) < 0) {
+          candidates.push(code);
+        }
+      }
+      this.termOptions = candidates;
+      const preferred: string = this.semester !== null && isValidTermCode(this.semester.termCode)
+        ? this.semester.termCode.trim() : surroundingTermCodes(new Date())[1];
+      if (this.selectedTerm.length === 0 || this.termOptions.indexOf(this.selectedTerm) < 0) {
+        this.selectedTerm = this.termOptions.indexOf(preferred) >= 0 ? preferred : this.termOptions[0];
+      }
+      this.refreshSelectedExisting();
       const saved: SavedCredentials | null = await CredentialsStore.load();
       if (saved !== null) {
         this.username = saved.username;
         this.savedAccount = true;
+      }
+      this.studentName = await JxfwProfileService.cachedName(this.context());
+      if (this.studentName.length === 0 && JxfwSession.isLoggedIn()) {
+        const fetched: string = await JxfwProfileService.refresh(this.context());
+        if (fetched.length > 0) {
+          this.studentName = fetched;
+        }
       }
       this.lastFull = await SyncSettings.get(this.context(), 'last_full');
       this.lastWeek = await SyncSettings.get(this.context(), 'last_week');
@@ -117,22 +153,51 @@ export struct SyncPage {
     }
   }
 
-  private async saveTermCode(): Promise<boolean> {
-    if (this.semester === null) {
-      this.error = '请先在“我的”中创建学期';
-      return false;
+  private refreshSelectedExisting(): void {
+    const existing: Semester | undefined =
+      this.semesters.find((item: Semester) => item.termCode.trim() === this.selectedTerm);
+    this.selectedExisting = existing === undefined ? null : existing;
+  }
+
+  private selectTerm(term: string): void {
+    this.selectedTerm = term;
+    this.plan = null;
+    this.previewSemester = null;
+    this.refreshSelectedExisting();
+  }
+
+  private semesterForTerm(term: string): Semester {
+    const existing: Semester | undefined =
+      this.semesters.find((item: Semester) => item.termCode.trim() === term);
+    if (existing !== undefined) {
+      return existing;
     }
-    const code: string = this.termCode.trim();
-    if (code.length === 0) {
-      this.error = '请填写教务学期代码';
-      return false;
+    return {
+      id: `jxfw-term-${term}`,
+      name: termLabel(term),
+      startDate: '',
+      totalWeeks: 0,
+      termCode: term,
+      isCurrent: false,
+      createdAt: 0,
+      updatedAt: 0
+    };
+  }
+
+  private termHint(term: string): string {
+    const existing: Semester | undefined =
+      this.semesters.find((item: Semester) => item.termCode.trim() === term);
+    if (this.semester !== null && this.semester.termCode.trim() === term) {
+      return '当前使用';
     }
-    if (code !== this.semester.termCode) {
-      await TimetableRepository.updateSemesterTermCode(this.context(), this.semester.id, code);
-      const updated: Semester | null = await TimetableRepository.getCurrentSemester(this.context());
-      this.semester = updated;
+    if (existing !== undefined) {
+      return '已导入，可重新抓取';
     }
-    return true;
+    return '抓取后自动创建学期';
+  }
+
+  private isDateCurrentTerm(term: string): boolean {
+    return surroundingTermCodes(new Date())[1] === term;
   }
 
   private formatNow(): string {
@@ -187,7 +252,14 @@ export struct SyncPage {
       this.password = '';
       this.savedAccount = true;
       this.loggedIn = true;
-      this.toast('登录成功，账号已安全保存');
+      PortalService.clearSession();
+      const name: string = await JxfwProfileService.refresh(this.context());
+      if (name.length > 0) {
+        this.studentName = name;
+        this.toast('登录成功，已获取教务姓名');
+      } else {
+        this.toast('登录成功，账号已安全保存');
+      }
       return true;
     } catch (error) {
       this.handleError(error);
@@ -213,13 +285,16 @@ export struct SyncPage {
     if (!(await this.ensureLoggedIn())) {
       return;
     }
-    if (!(await this.saveTermCode()) || this.semester === null) {
+    if (!isValidTermCode(this.selectedTerm)) {
+      this.error = '请选择要抓取的学期';
       return;
     }
     this.syncing = true;
     this.error = '';
     try {
-      this.plan = await TimetableSyncService.previewFullSync(this.context(), this.semester);
+      const target: Semester = this.semesterForTerm(this.selectedTerm);
+      this.plan = await TimetableSyncService.previewFullSync(this.context(), target);
+      this.previewSemester = target;
       this.showPreview = true;
     } catch (error) {
       this.handleError(error);
@@ -229,24 +304,52 @@ export struct SyncPage {
   }
 
   private async applyPlan(): Promise<void> {
-    if (this.plan === null || this.semester === null || this.applying) {
+    if (this.plan === null || this.previewSemester === null || this.applying) {
       return;
     }
     this.applying = true;
     this.error = '';
     try {
+      const target: Semester = this.previewSemester;
+      const startDate: string = this.plan.startDate.length > 0
+        ? this.plan.startDate
+        : (target.startDate.length > 0 ? target.startDate : todayIso());
+      let totalWeeks: number = target.totalWeeks;
+      if (this.plan.totalWeeks > totalWeeks) {
+        totalWeeks = this.plan.totalWeeks;
+      }
+      if (totalWeeks < 1) {
+        totalWeeks = 20;
+      }
+      const saved: Semester = await TimetableRepository.ensureSemesterForTerm(
+        this.context(), target.id, termLabel(target.termCode), startDate, totalWeeks, target.termCode);
+      if (saved.id !== target.id) {
+        for (const course of this.plan.add) {
+          course.semesterId = saved.id;
+        }
+        for (const course of this.plan.update) {
+          course.semesterId = saved.id;
+        }
+        for (const event of this.plan.exams) {
+          event.semesterId = saved.id;
+        }
+      }
       const summary: SyncSummary =
-        await TimetableSyncService.applyFullSync(this.context(), this.semester, this.plan);
+        await TimetableSyncService.applyFullSync(this.context(), saved, this.plan);
       this.result = this.summaryText(summary, false);
       this.lastFull = this.formatNow();
       await SyncSettings.set(this.context(), 'last_full', this.lastFull);
       await SyncSettings.set(this.context(), 'last_result', this.result);
-      const updated: Semester | null = await TimetableRepository.getCurrentSemester(this.context());
-      this.semester = updated;
+      this.semester = await TimetableRepository.getCurrentSemester(this.context());
+      this.semesters = await TimetableRepository.listSemesters(this.context());
+      this.selectedTerm = saved.termCode;
+      this.refreshSelectedExisting();
+      this.deletedImports = (await TimetableRepository.listTombstones(this.context(), saved.id)).length;
       this.showPreview = false;
       this.plan = null;
+      this.previewSemester = null;
       TimetableState.bump();
-      this.toast('同步完成');
+      this.toast(`已导入 ${saved.name}`);
     } catch (error) {
       this.handleError(error);
     } finally {
@@ -258,7 +361,12 @@ export struct SyncPage {
     if (!(await this.ensureLoggedIn())) {
       return;
     }
-    if (!(await this.saveTermCode()) || this.semester === null) {
+    if (this.semester === null) {
+      this.error = '请先抓取当前学期，再更新下周课表';
+      return;
+    }
+    if (!isValidTermCode(this.semester.termCode)) {
+      this.error = '当前学期缺少教务学期代码，请重新抓取学期';
       return;
     }
     this.syncing = true;
@@ -296,6 +404,7 @@ export struct SyncPage {
 
   private async logout(): Promise<void> {
     JxfwSession.clear();
+    PortalService.clearSession();
     await CredentialsStore.clear();
     this.loggedIn = false;
     this.savedAccount = false;
@@ -310,13 +419,84 @@ export struct SyncPage {
     Row({ space: AppTheme.SPACE_SM }) {
       SymbolGlyph(icon)
         .fontSize(20)
-        .fontColor([AppTheme.BRAND])
+        .fontColor([this.brandTextColor])
       Text(title)
         .fontSize(AppTheme.FONT_TITLE)
         .fontWeight(FontWeight.Medium)
         .fontColor(AppTheme.TEXT_PRIMARY)
     }
     .width('100%')
+  }
+
+  @Builder
+  loginOnlyCard() {
+    Column({ space: 10 }) {
+      Column({ space: 4 }) {
+        Text('登录教务系统')
+          .fontSize(AppTheme.FONT_HEADING)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+        Text('填写学号与密码，登录后可同步课表、考试与学期')
+          .fontSize(AppTheme.FONT_CAPTION)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .width('100%')
+      .padding({ bottom: 4 })
+
+      Text('学号')
+        .fontSize(AppTheme.FONT_CAPTION)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .width('100%')
+      TextInput({ text: this.username, placeholder: '请输入学号' })
+        .height(46)
+        .backgroundColor(AppTheme.BG)
+        .borderRadius(12)
+        .onChange((value: string) => {
+          this.username = value;
+        })
+
+      Text('密码')
+        .fontSize(AppTheme.FONT_CAPTION)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .width('100%')
+      TextInput({ text: this.password, placeholder: '请输入密码' })
+        .type(InputType.Password)
+        .height(46)
+        .backgroundColor(AppTheme.BG)
+        .borderRadius(12)
+        .onChange((value: string) => {
+          this.password = value;
+        })
+
+      Button(this.loggingIn ? '登录中…' : '登录')
+        .width('100%')
+        .height(46)
+        .backgroundColor(this.brandColor)
+        .fontColor(this.onBrandColor)
+        .enabled(!this.loggingIn)
+        .margin({ top: 4 })
+        .onClick(() => this.login())
+
+      if (this.error.length > 0) {
+        Text(this.error)
+          .fontSize(AppTheme.FONT_CAPTION)
+          .fontColor('#C7362B')
+          .width('100%')
+      }
+
+      Text('账号保存在系统安全存储，仅用于学校统一认证；不会写入日志或普通 Preferences。')
+        .fontSize(AppTheme.FONT_TINY)
+        .fontColor(AppTheme.TEXT_TERTIARY)
+        .width('100%')
+        .lineHeight(17)
+        .padding({ top: 2 })
+    }
+    .width('100%')
+    .padding(AppTheme.CARD_PADDING)
+    .backgroundColor(AppTheme.CARD_BG)
+    .borderRadius(AppTheme.CARD_RADIUS)
+    .margin({ top: 40 })
   }
 
   @Builder
@@ -340,6 +520,8 @@ export struct SyncPage {
       Button(this.loggingIn ? '登录中…' : (this.savedAccount ? '重新登录并保存' : '登录并保存'))
         .width('100%')
         .height(42)
+        .backgroundColor(this.brandColor)
+        .fontColor(this.onBrandColor)
         .enabled(!this.loggingIn && !this.syncing)
         .onClick(() => this.login())
       Text('账号保存在系统安全存储；会话失效时自动登录并重新抓取。')
@@ -380,11 +562,12 @@ export struct SyncPage {
       .justifyContent(FlexAlign.Center)
       if (this.plan !== null) {
         Column({ space: 4 }) {
-          Text('同步预览')
-            .fontSize(28)
+          Text(this.previewSemester === null ? '同步预览'
+            : `${termLabel(this.previewSemester.termCode)} 预览`)
+            .fontSize(26)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_PRIMARY)
-          Text('确认后才会写入本地课表和考试')
+          Text('确认后自动创建或切换到该学期，并写入课表和考试')
             .fontSize(AppTheme.FONT_CAPTION)
             .fontColor(AppTheme.TEXT_SECONDARY)
         }
@@ -393,7 +576,7 @@ export struct SyncPage {
 
         Row() {
           this.previewMetric('新增课程', this.plan.add.length, '#1D7A46')
-          this.previewMetric('更新课程', this.plan.update.length, AppTheme.BRAND)
+          this.previewMetric('更新课程', this.plan.update.length, this.brandTextColor)
           this.previewMetric('移除课程', this.plan.remove.length, '#C7362B')
           this.previewMetric('考试', this.plan.exams.length, '#B26A00')
         }
@@ -401,6 +584,11 @@ export struct SyncPage {
         .padding({ top: 8, bottom: 8 })
         .backgroundColor(AppTheme.SHEET_CARD_BG)
         .borderRadius(20)
+
+        Text(`${this.plan.startDate.length > 0 ? '开学 ' + this.plan.startDate : '开学日待校准'} · 共 ${this.plan.totalWeeks > 0 ? this.plan.totalWeeks : 20} 周`)
+          .fontSize(AppTheme.FONT_TINY)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
 
         if (this.plan.warnings.length > 0) {
           Text(this.plan.warnings[0])
@@ -425,7 +613,7 @@ export struct SyncPage {
             .onClick(() => {
               this.showPreview = false;
             })
-          Button(this.applying ? '正在应用…' : '应用变更')
+          Button(this.applying ? '正在导入…' : '导入并切换学期')
             .layoutWeight(1)
             .height(46)
             .borderRadius(23)
@@ -440,10 +628,84 @@ export struct SyncPage {
     .alignItems(HorizontalAlign.Start)
   }
 
+  @Builder
+  termOption(term: string) {
+    Row({ space: 12 }) {
+      Stack() {
+        if (this.selectedTerm === term) {
+          Column()
+            .width(10)
+            .height(10)
+            .borderRadius(5)
+            .backgroundColor(this.brandColor)
+        }
+      }
+      .width(20)
+      .height(20)
+      .borderRadius(10)
+      .border({
+        width: this.selectedTerm === term ? 1.5 : 1,
+        color: this.selectedTerm === term ? this.brandColor : AppTheme.TEXT_TERTIARY
+      })
+      .align(Alignment.Center)
+
+      Column({ space: 3 }) {
+        Text(termLabel(term))
+          .fontSize(AppTheme.FONT_BODY)
+          .fontWeight(this.selectedTerm === term ? FontWeight.Medium : FontWeight.Normal)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+          .maxLines(1)
+        Text(`${term} · ${this.termHint(term)}`)
+          .fontSize(AppTheme.FONT_TINY)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .maxLines(1)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      if (this.isDateCurrentTerm(term)) {
+        Text('本学期')
+          .fontSize(9)
+          .fontColor(this.brandTextColor)
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          .backgroundColor(ThemeColor.alpha(this.brandColor, 0.1))
+          .borderRadius(8)
+      }
+    }
+    .width('100%')
+    .height(66)
+    .padding({ left: 14, right: 14 })
+    .backgroundColor(this.selectedTerm === term ? ThemeColor.alpha(this.brandColor, 0.07) : AppTheme.BG)
+    .borderRadius(16)
+    .border({
+      width: this.selectedTerm === term ? 1.2 : 0.5,
+      color: this.selectedTerm === term ? this.brandColor : '#14000000'
+    })
+    .onClick(() => this.selectTerm(term))
+  }
+
   build() {
     HdsNavDestination() {
       Scroll() {
         Column({ space: AppTheme.SPACE_LG }) {
+          if (this.loading) {
+            Column({ space: 8 }) {
+              LoadingProgress()
+                .width(28)
+                .height(28)
+                .color(this.brandTextColor)
+              Text('正在读取登录信息…')
+                .fontSize(AppTheme.FONT_CAPTION)
+                .fontColor(AppTheme.TEXT_TERTIARY)
+            }
+            .width('100%')
+            .height(220)
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+          } else if (!this.loggedIn && !this.savedAccount) {
+            this.loginOnlyCard()
+          } else {
+            Column({ space: AppTheme.SPACE_LG }) {
           Column({ space: AppTheme.SPACE_SM }) {
             this.sectionTitle($r('sys.symbol.arrow_clockwise'), $r('app.string.sync_account'))
             SyncInfoRow({
@@ -454,7 +716,14 @@ export struct SyncPage {
               label: '登录状态',
               value: this.loggedIn ? '已登录' : (this.savedAccount ? '已保存，待自动登录' : '未登录')
             })
-            SyncInfoRow({ label: $r('app.string.sync_term'), value: this.semesterLabel })
+            SyncInfoRow({
+              label: '姓名',
+              value: this.studentName.length > 0 ? this.studentName : '未获取，可在“我的”中编辑'
+            })
+            SyncInfoRow({
+              label: '当前学期',
+              value: this.semester === null ? '未设置' : this.semester.name
+            })
             SyncInfoRow({ label: $r('app.string.sync_last_full'), value: this.lastFull })
             SyncInfoRow({ label: $r('app.string.sync_last_week'), value: this.lastWeek })
             SyncInfoRow({ label: $r('app.string.sync_result'), value: this.result })
@@ -467,7 +736,7 @@ export struct SyncPage {
                 Blank()
                 Text('恢复')
                   .fontSize(AppTheme.FONT_TINY)
-                  .fontColor(AppTheme.BRAND)
+                  .fontColor(this.brandTextColor)
                   .onClick(() => this.restoreDeletedImports())
               }
               .width('100%')
@@ -486,22 +755,14 @@ export struct SyncPage {
                 .padding({ top: 4 })
             }
 
-            Row({ space: AppTheme.SPACE_MD }) {
-              Button($r('app.string.sync_full'))
-                .layoutWeight(1)
-                .height(42)
-                .enabled(!this.syncing && (this.loggedIn || this.savedAccount))
-                .onClick(() => this.runFullSync())
-              Button($r('app.string.sync_next_week'))
-                .layoutWeight(1)
-                .height(42)
-                .backgroundColor(AppTheme.BG)
-                .fontColor(AppTheme.TEXT_PRIMARY)
-                .enabled(!this.syncing && (this.loggedIn || this.savedAccount))
-                .onClick(() => this.runWeekSync())
-            }
-            .width('100%')
-            .margin({ top: AppTheme.SPACE_SM })
+            Button($r('app.string.sync_next_week'))
+              .width('100%')
+              .height(42)
+              .backgroundColor(AppTheme.BG)
+              .fontColor(AppTheme.TEXT_PRIMARY)
+              .enabled(!this.syncing && (this.loggedIn || this.savedAccount) && this.semester !== null)
+              .onClick(() => this.runWeekSync())
+              .margin({ top: AppTheme.SPACE_SM })
           }
           .width('100%')
           .padding(AppTheme.CARD_PADDING)
@@ -511,32 +772,33 @@ export struct SyncPage {
 
           Column({ space: AppTheme.SPACE_SM }) {
             this.sectionTitle($r('sys.symbol.calendar'), $r('app.string.sync_select_term'))
-            Row() {
-              Text($r('app.string.sync_term_code'))
-                .fontSize(AppTheme.FONT_CAPTION)
-                .fontColor(AppTheme.TEXT_SECONDARY)
-              Blank()
-              Text('保存')
-                .fontSize(AppTheme.FONT_TINY)
-                .fontColor(AppTheme.BRAND)
-                .onClick(async () => {
-                  if (await this.saveTermCode()) {
-                    this.toast('学期代码已保存');
-                  }
-                })
-            }
-            .width('100%')
-            TextInput({ text: this.termCode, placeholder: '202601' })
-              .height(42)
-              .backgroundColor(AppTheme.BG)
-              .borderRadius(10)
-              .onChange((value: string) => {
-                this.termCode = value;
-              })
-            Text($r('app.string.sync_term_code_tip'))
+            Text('登录后选择当前学期或前后一学期，直接抓取课表和考试，无需先手动创建学期。')
               .fontSize(AppTheme.FONT_TINY)
               .fontColor(AppTheme.TEXT_TERTIARY)
               .width('100%')
+              .lineHeight(17)
+            ForEach(this.termOptions, (term: string) => {
+              this.termOption(term)
+            }, (term: string) => `${term}-${this.selectedTerm === term}`)
+
+            if (this.selectedExisting !== null) {
+              Text(`本地已有：${this.selectedExisting.name} · ${this.selectedExisting.startDate} · ${this.selectedExisting.totalWeeks} 周`)
+                .fontSize(AppTheme.FONT_TINY)
+                .fontColor(AppTheme.TEXT_SECONDARY)
+                .width('100%')
+            } else {
+              Text('该学期尚未导入，确认预览后会自动创建并切换。')
+                .fontSize(AppTheme.FONT_TINY)
+                .fontColor(AppTheme.TEXT_TERTIARY)
+                .width('100%')
+            }
+
+            Button(this.syncing ? '正在抓取…' : '抓取所选学期')
+              .width('100%')
+              .height(44)
+              .enabled(!this.syncing && (this.loggedIn || this.savedAccount) && this.selectedTerm.length > 0)
+              .onClick(() => this.runFullSync())
+              .margin({ top: AppTheme.SPACE_XS })
           }
           .width('100%')
           .padding(AppTheme.CARD_PADDING)
@@ -550,6 +812,7 @@ export struct SyncPage {
               .fontColor(AppTheme.TEXT_PRIMARY)
             Blank()
             Toggle({ type: ToggleType.Switch, isOn: this.autoSync })
+              .selectedColor(this.brandTextColor)
               .onChange(async (isOn: boolean) => {
                 const ok: boolean = await AutoSyncService.setEnabled(this.context(), isOn);
                 this.autoSync = ok ? isOn : false;
@@ -577,12 +840,15 @@ export struct SyncPage {
               .padding({ top: AppTheme.SPACE_MD, bottom: AppTheme.SPACE_MD })
               .onClick(() => this.logout())
           }
+            }
+            .width('100%')
+          }
         }
         .width('100%')
         .padding({
           left: AppTheme.PAGE_PADDING,
           right: AppTheme.PAGE_PADDING,
-          top: AppTheme.TALL_PAGE_TOP_INSET + 8,
+          top: AppTheme.TALL_PAGE_TOP_INSET + 24,
           bottom: AppTheme.SPACE_XXL
         })
         .alignItems(HorizontalAlign.Start)

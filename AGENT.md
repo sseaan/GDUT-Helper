@@ -1,7 +1,7 @@
 # 工大助手（GDUT Helper）开发记录
 
 > 本文合并了原 `PLAN.md` 与 M0–M6 阶段性文档，作为后续开发、发版和长期维护的统一入口。
-> 应用名：**工大助手**；包名：`com.gduthelper.app`；当前版本：**1.0.0**。
+> 应用名：**工大助手**；包名：`com.gduthelper.app`；当前版本：**1.1.0**。
 > 最低兼容：HarmonyOS 6.1.0(23)；当前测试环境：Mate 80 Pro Max 模拟器 / SGT-AL10 真机（API 26）。
 
 ## 1. 项目目标
@@ -11,7 +11,7 @@
 - 原生登录教务，导入课表、考试和开学日期；
 - 本地保存课表、日程、提醒和系统日历；
 - 查询成绩/GPA、体测成绩和空教室；
-- 支持 JSON 备份恢复、ICS/XLSX 导入；
+- 支持 JSON 备份恢复、ICS 导出、ICS/XLSX 导入；
 - 不依赖自建服务端，不在线同步账号数据。
 
 核心原则：
@@ -32,14 +32,15 @@
 | M3 日历/提醒/卡片 | 核心完成 | Agenda、手动日程、系统日历、三张卡片、AutoSync |
 | M4 校园服务 | 完成 | 成绩/GPA、体测 WebView 登录、空教室真实数据与缓存 |
 | M5 数据迁移 | 完成 | JSON 备份恢复、ICS/XLSX 导入、数据与备份页面 |
-| M6 维护/发版 | 进行中 | v2 备份校验、导入兼容、UI/日历/空教室修复、品牌与发版准备 |
+| M6 维护/发版 | 1.1.0 发布准备 | 主题色/材质档位、本地通知、ICS 导出、unsigned CI、发版文档 |
 
 ### 当前发版状态
 
 已完成：
 
 - 应用名称、Logo、关于页、Q 群、AGPL-3.0 信息；
-- 版本 `1.0.0`；
+- 版本 `1.1.0`；
+- 主要更新：三套主题色与光感强度、图书馆 OPAC、校园数据/新闻、ICS 导出、本地通知、unsigned HAP CI；
 - Debug/Release HAP 构建；
 - 模拟器完整功能回归；
 - 真机登录、全量同步、课表、空教室、系统日历、今日卡片验证。
@@ -116,6 +117,8 @@ jxfw:<term>:<kcrwdm>-<weekday>-<start>-<end>
 - 原生 CAS 登录，不使用 WebView；
 - 密码 AES-128-CBC/PKCS7 加密；
 - 账号密码存 Asset Store（`gdut_helper_jxfw_account`）；
+- 登录后从 `xjkpxx`/欢迎页抓取学生姓名，失败时可在“我的”手动编辑；
+- 同步页直接选择当前学期及前后各一学期，预览后自动创建/切换本地学期，无需先手动建学期；
 - 会话失效自动登录并重试；
 - 全量同步分 `preview` / `apply`，预览不写库；
 - 二次同步幂等；用户删除的导入课程写墓碑；
@@ -127,7 +130,8 @@ jxfw:<term>:<kcrwdm>-<weekday>-<start>-<end>
 
 - 周一至周日网格，1–12 节；
 - 周切换按钮 30×30，内容整体下移；
-- 已结束课程淡灰显示（过去周、当前周已过星期/节次）；
+- 已结束课程淡灰显示（课表、今日、日历统一判断）；
+- 课程展示名去掉末尾的 `（1）` 等班级序号，存储名保持不变以稳定同步匹配；
 - 课程 Sheet：X 关闭、编辑、停课、调课、补课；
 - 日历月/周视图，月视图课程蓝点、考试红点；
 - 月视图 `ForEach` key 含月份/日期/数据数量，避免跨月复用旧格子；
@@ -146,11 +150,19 @@ jxfw:<term>:<kcrwdm>-<weekday>-<start>-<end>
   - 番禺/揭阳校区可见；
   - jwcwx 字段 null-safe。
 
-### 5.4 提醒、系统日历、卡片
+### 5.4 校园页
+- 原生校园数据卡片：校园卡余额、图书借阅、校园网余额/状态，读取 ehall `CUS_CARD_MYDATA`；
+- 校园新闻默认读取通知简讯网 `OA最新简讯`，完整页提供最新简讯/校内通知/公示公告/招标公告；
+- 通知简讯列表接口不返回封面图，按需抓取 OAS 详情页正文首图做缩略图/大图；
+- 校园数据卡片使用系统语义色，顶部跟随主题色，位于四张服务卡片下方；
+- 新闻详情使用 App 内 WebView，详情页提供“在浏览器打开”原生按钮。
+
+### 5.5 提醒、系统日历、卡片
 
 - ReminderAgent 课程提前 10 分钟、考试提前 30 分钟，最多 24 条；
 - 失败回滚开关并提示改用系统日历；
-- 系统日历写入未来 21 天 `[GDUT]` 事件，最多 80 条，ID 去重；
+- 即时本地通知：`LocalNotificationService` 使用 `notificationManager`，同步完成时推送，不依赖代理提醒能力；
+- 系统日历写入未来 21 天事件，最多 80 条，ID 去重；标题为课程/日程名，备注为 `地点 · 教师 · GDUT Helper`；
 - 三张卡片：今日课程、下一节课、本周课表；
 - 卡片进程读取 `filesDir/widget_today.json`；
 - 卡片必须使用 `@LocalStorageProp`；
@@ -170,7 +182,8 @@ ICS：
 
 - VEVENT、折行、DTSTART/DTEND、LOCATION、DESCRIPTION、UID；
 - `STATUS:CANCELLED` 跳过；`DURATION` 支持；
-- UID 去重；导入事件 `source=ICS`。
+- UID 去重；导入事件 `source=ICS`；
+- 导出：当前学期展开为 ICS，含课程/考试/日程，Asia/Shanghai，VALARM；
 
 XLSX：
 
@@ -190,14 +203,17 @@ XLSX：
 ### 5.6 外观与关于
 
 - 主题模式：跟随系统/浅色/深色；
-- 主题色跟随系统；
-- 沉浸光感、智感握姿开关；
+- 主题色：鸿蒙蓝 / 广工红 / Goke绿（`#CDEBE3`，浅色表面自动使用深色前景）；
+- 沉浸光感、光感强度（跟随系统/精致/柔和/流畅）、智感握姿开关；
 - 关于页：Logo、版本、项目主页、QQ 群 `1103357499`、AGPL-3.0、致谢；
 - 应用名统一为“工大助手”，根目录 `logo.png` 同步应用图标和关于页。
 
 ## 6. 接口与网络适配
 
 详细端点、字段和样例见 [`docs/API_EXPLORATION.md`](docs/API_EXPLORATION.md)。
+融合门户/校园新闻的卡片接口调研见 [`docs/PORTAL_DATA.md`](docs/PORTAL_DATA.md)。
+图书馆 OPAC 的接口调研见 [`docs/LIBRARY_API.md`](docs/LIBRARY_API.md)。
+界面/图标/沉浸光感的设计基线见 [`docs/DESIGN.md`](docs/DESIGN.md)。
 
 关键适配：
 
@@ -238,10 +254,17 @@ XLSX：
 - **真实 XLSX**：解析器已实现，缺少真实文件端到端验证。
 - **真机全量回归**：通知、横竖屏、生命周期、卡片尺寸、文件选择器仍需真机。
 
+### GitHub Actions
+
+- `.github/workflows/build-unsigned.yml`：push/PR/手动触发；
+- 使用 `ErBWs/setup-ohos@v2` 安装 HarmonyOS SDK；
+- CI 中移除 `signingConfig`，构建 unsigned HAP 并上传 Artifact；
+- 不注入证书/密码，预期分发方式为下载 unsigned HAP 后侧载安装。
+
 ## 8. 发版检查清单
 
 - [x] 应用名“工大助手”
-- [x] 版本 `1.0.0`
+- [x] 版本 `1.1.0`
 - [x] 根目录 Logo 同步
 - [x] 关于页/QQ 群/协议
 - [x] 移除演示课程、自检页和测试文案

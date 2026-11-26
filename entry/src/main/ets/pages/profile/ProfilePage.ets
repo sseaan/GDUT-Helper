@@ -6,14 +6,19 @@ import { AppNavActions } from '../../common/AppNavActions';
 import { Course, Event, Semester } from '../../domain/model/TimetableModels';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { weekOf } from '../../domain/timetable/TimetableEngine';
-import { DisplaySettings } from '../../state/DisplaySettings';
 import { ReminderService } from '../../services/reminder/ReminderService';
 import { SystemCalendarSyncService } from '../../services/calendar/SystemCalendarSyncService';
 import { TzcsCacheService } from '../../services/tzcs/TzcsCache';
 import { TzcsCache } from '../../services/tzcs/TzcsModels';
+import { JxfwProfileService } from '../../services/jxfw/JxfwProfileService';
+import { JxfwSession } from '../../services/jxfw/JxfwSession';
+import { CredentialsStore } from '../../services/jxfw/CredentialsStore';
 
 @Component
 struct ProfileRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop label: ResourceStr = '';
   @Prop value: string = '';
   @Prop showChevron: boolean = false;
@@ -47,6 +52,9 @@ struct ProfileRow {
 
 @Component
 struct ProfileToggleRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop label: ResourceStr = '';
   @Prop isOn: boolean = false;
   onToggle: (value: boolean) => void = () => {};
@@ -58,6 +66,7 @@ struct ProfileToggleRow {
         .fontColor(AppTheme.TEXT_PRIMARY)
       Blank()
       Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+        .selectedColor(this.brandTextColor)
         .onChange((value: boolean) => this.onToggle(value))
     }
     .width('100%')
@@ -68,6 +77,9 @@ struct ProfileToggleRow {
 
 @Component
 struct SettingsRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop icon: Resource;
   @Prop label: ResourceStr = '';
   @Prop value: string = '';
@@ -114,6 +126,9 @@ struct SettingsRow {
 
 @Component
 struct SettingsToggleRow {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop icon: Resource;
   @Prop label: ResourceStr = '';
   @Prop detail: string = '';
@@ -139,6 +154,7 @@ struct SettingsToggleRow {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
       Toggle({ type: ToggleType.Switch, isOn: this.isOn })
+        .selectedColor(this.brandTextColor)
         .onChange((value: boolean) => this.onToggle(value))
     }
     .width('100%')
@@ -149,12 +165,18 @@ struct SettingsToggleRow {
 
 @Component
 export struct ProfilePage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   nav: AppNavActions = new AppNavActions();
   onOpenSync: () => void = () => {};
+  onOpenFeatures: () => void = () => {};
   onOpenAppearance: () => void = () => {};
   onOpenDataBackup: () => void = () => {};
   onOpenAbout: () => void = () => {};
   @StorageLink('timetableRevision') @Watch('onRevisionChange') revision: number = 0;
+  @StorageLink('profileNameRevision') @Watch('onNameRevision') nameRevision: number = 0;
+  @StorageLink('jxfwSessionRevision') @Watch('onLoginRevision') loginRevision: number = 0;
   @State semester: Semester | null = null;
   @State semesterName: string = '';
   @State courseCount: number = 0;
@@ -162,21 +184,32 @@ export struct ProfilePage {
   @State currentWeek: number = 0;
   @State avatarUri: string = '';
   @State displayName: string = '工大助手';
+  @State hasManualName: boolean = false;
+  @State showNameSheet: boolean = false;
+  @State nameDraft: string = '';
+  @State hasLoginInfo: boolean = false;
 
-  @StorageLink('showCourseContent') showCourseContent: boolean = false;
   @StorageLink('remindersEnabled') remindersEnabled: boolean = false;
   @StorageLink('calendarSyncEnabled') calendarSyncEnabled: boolean = false;
 
   aboutToAppear(): void {
-    DisplaySettings.load(this.getUIContext().getHostContext() as common.UIAbilityContext);
     ReminderService.loadSetting(this.getUIContext().getHostContext() as common.UIAbilityContext);
     SystemCalendarSyncService.loadSetting(this.getUIContext().getHostContext() as common.UIAbilityContext);
     this.load();
     this.loadIdentity();
+    this.loadLoginInfo();
   }
 
   onRevisionChange(): void {
     this.load();
+  }
+
+  onNameRevision(): void {
+    this.loadIdentity();
+  }
+
+  onLoginRevision(): void {
+    this.loadLoginInfo();
   }
 
   private async load(): Promise<void> {
@@ -213,6 +246,15 @@ export struct ProfilePage {
     }
   }
 
+  private async loadLoginInfo(): Promise<void> {
+    try {
+      const saved = await CredentialsStore.load();
+      this.hasLoginInfo = saved !== null || JxfwSession.isLoggedIn();
+    } catch (error) {
+      this.hasLoginInfo = JxfwSession.isLoggedIn();
+    }
+  }
+
   private async loadIdentity(): Promise<void> {
     try {
       const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -221,17 +263,85 @@ export struct ProfilePage {
       if (typeof saved === 'string' && saved.length > 0) {
         this.avatarUri = saved;
       }
+      const manualName: string = await JxfwProfileService.manualName(context);
+      let jxfwName: string = await JxfwProfileService.cachedName(context);
+      if (manualName.length === 0 && jxfwName.length === 0 && JxfwSession.isLoggedIn()) {
+        jxfwName = await JxfwProfileService.refresh(context);
+      }
+      let tzcsName: string = '';
       const cache: TzcsCache | null = await TzcsCacheService.load(context);
       if (cache !== null) {
         for (const report of cache.reports) {
           if (report.studentName.length > 0) {
-            this.displayName = report.studentName;
+            tzcsName = report.studentName;
           }
         }
+      }
+      this.hasManualName = manualName.length > 0;
+      if (manualName.length > 0) {
+        this.displayName = manualName;
+      } else if (jxfwName.length > 0) {
+        this.displayName = jxfwName;
+      } else if (tzcsName.length > 0) {
+        this.displayName = tzcsName;
+      } else {
+        this.displayName = '工大助手';
       }
     } catch (error) {
       // Identity is optional; fall back to the app title.
     }
+  }
+
+  private openNameEditor(): void {
+    this.nameDraft = this.displayName;
+    this.showNameSheet = true;
+  }
+
+  private async saveName(): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const name: string = this.nameDraft.trim();
+    try {
+      if (name.length > 0) {
+        await JxfwProfileService.setManualName(context, name);
+      } else {
+        await JxfwProfileService.clearManualName(context);
+      }
+      this.showNameSheet = false;
+      await this.loadIdentity();
+      this.toast(name.length > 0 ? '显示名称已更新' : '已恢复自动获取的姓名');
+    } catch (error) {
+      this.toast('保存失败，请重试');
+    }
+  }
+
+  private async restoreFetchedName(): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    try {
+      await JxfwProfileService.clearManualName(context);
+      this.showNameSheet = false;
+      await this.loadIdentity();
+      this.toast('已恢复自动获取的姓名');
+    } catch (error) {
+      this.toast('恢复失败，请重试');
+    }
+  }
+
+  private async refreshFetchedName(): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const name: string = await JxfwProfileService.refresh(context);
+    if (name.length === 0) {
+      this.toast('未能获取教务姓名，请手动填写');
+      return;
+    }
+    try {
+      await JxfwProfileService.clearManualName(context);
+    } catch (error) {
+      // The fetched name can still be displayed even if the preference write fails.
+    }
+    this.hasManualName = false;
+    this.displayName = name;
+    this.nameDraft = name;
+    this.toast('已重新获取教务姓名');
   }
 
   private async chooseAvatar(): Promise<void> {
@@ -276,25 +386,27 @@ export struct ProfilePage {
         Stack() {
           SymbolGlyph($r('sys.symbol.person'))
             .fontSize(28)
-            .fontColor([AppTheme.ON_BRAND])
+            .fontColor([this.onBrandColor])
         }
         .width(56)
         .height(56)
         .borderRadius(28)
-        .backgroundColor(AppTheme.BRAND)
+        .backgroundColor(this.brandColor)
         .align(Alignment.Center)
       }
-      Stack() {
-        SymbolGlyph($r('sys.symbol.plus'))
-          .fontSize(10)
-          .fontColor(['#FFFFFF'])
+      if (this.avatarUri.length === 0) {
+        Stack() {
+          SymbolGlyph($r('sys.symbol.plus'))
+            .fontSize(10)
+            .fontColor(['#FFFFFF'])
+        }
+        .width(18)
+        .height(18)
+        .borderRadius(9)
+        .backgroundColor(this.brandColor)
+        .border({ width: 1.5, color: AppTheme.CARD_BG })
+        .align(Alignment.Center)
       }
-      .width(18)
-      .height(18)
-      .borderRadius(9)
-      .backgroundColor(AppTheme.BRAND)
-      .border({ width: 1.5, color: AppTheme.CARD_BG })
-      .align(Alignment.Center)
     }
     .width(58)
     .height(58)
@@ -320,6 +432,81 @@ export struct ProfilePage {
     return `第 ${this.currentWeek} 周`;
   }
 
+  @Builder
+  nameSheetBuilder() {
+    Column({ space: AppTheme.SPACE_MD }) {
+      Row() {
+        Column()
+          .width(36)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor('#26000000')
+      }
+      .width('100%')
+      .height(10)
+      .justifyContent(FlexAlign.Center)
+
+      Text('显示名称')
+        .fontSize(26)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+        .width('100%')
+      Text('优先显示教务系统抓取到的姓名；抓不到时可以在这里手动填写。')
+        .fontSize(AppTheme.FONT_TINY)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .width('100%')
+        .lineHeight(18)
+
+      TextInput({ text: this.nameDraft, placeholder: '输入显示名称' })
+        .height(44)
+        .backgroundColor(AppTheme.BG)
+        .borderRadius(12)
+        .onChange((value: string) => {
+          this.nameDraft = value;
+        })
+
+      Row({ space: AppTheme.SPACE_SM }) {
+        Button('取消')
+          .layoutWeight(1)
+          .height(46)
+          .borderRadius(23)
+          .backgroundColor(AppTheme.SHEET_CARD_BG)
+          .fontColor(AppTheme.TEXT_PRIMARY)
+          .onClick(() => {
+            this.showNameSheet = false;
+          })
+        Button('保存')
+          .layoutWeight(1)
+          .height(46)
+          .borderRadius(23)
+          .backgroundColor(this.brandColor)
+          .fontColor(this.onBrandColor)
+          .onClick(() => this.saveName())
+      }
+      .width('100%')
+
+      if (JxfwSession.isLoggedIn()) {
+        Text('从教务重新获取姓名')
+          .fontSize(AppTheme.FONT_CAPTION)
+          .fontColor(this.brandTextColor)
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .onClick(() => this.refreshFetchedName())
+      }
+      if (this.hasManualName) {
+        Text('恢复自动获取的姓名')
+          .fontSize(AppTheme.FONT_CAPTION)
+          .fontColor(AppTheme.TEXT_SECONDARY)
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .onClick(() => this.restoreFetchedName())
+      }
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 4, bottom: AppTheme.SPACE_XXL })
+    .alignItems(HorizontalAlign.Start)
+  }
+
   build() {
     Scroll() {
       Column({ space: 14 }) {
@@ -329,14 +516,20 @@ export struct ProfilePage {
             this.avatarView()
 
             Column({ space: 3 }) {
-              Text(this.displayName)
-                .fontSize(22)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(AppTheme.TEXT_PRIMARY)
-                .maxLines(1)
+              Row() {
+                Text(this.displayName)
+                  .fontSize(22)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(AppTheme.TEXT_PRIMARY)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1)
+              }
+              .width('100%')
+              .onClick(() => this.openNameEditor())
               Text(this.semester !== null
-                ? `在读 · ${this.semester.name}`
-                : '在读 · 本地优先的校园助手')
+                ? this.semester.name
+                : '本地优先的校园助手')
                 .fontSize(AppTheme.FONT_CAPTION)
                 .fontColor(AppTheme.TEXT_SECONDARY)
                 .maxLines(1)
@@ -344,13 +537,13 @@ export struct ProfilePage {
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
 
-            Row({ space: 2 }) {
-              Text('登录教务系统')
-                .fontSize(AppTheme.FONT_TINY)
-                .fontColor(AppTheme.BRAND)
-              SymbolGlyph($r('sys.symbol.chevron_right'))
+            Row({ space: 3 }) {
+              Text(this.hasLoginInfo ? '查看登录信息' : '登录教务系统')
                 .fontSize(13)
-                .fontColor([AppTheme.BRAND])
+                .fontColor(this.hasLoginInfo ? AppTheme.TEXT_SECONDARY : this.brandTextColor)
+              SymbolGlyph($r('sys.symbol.chevron_right'))
+                .fontSize(15)
+                .fontColor([this.hasLoginInfo ? AppTheme.TEXT_SECONDARY : this.brandTextColor])
             }
             .onClick(() => this.onOpenSync())
           }
@@ -363,7 +556,7 @@ export struct ProfilePage {
               Text(this.statsValue())
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(AppTheme.BRAND)
+                .fontColor(this.brandTextColor)
               Text('当前周次')
                 .fontSize(AppTheme.FONT_TINY)
                 .fontColor(AppTheme.TEXT_SECONDARY)
@@ -374,7 +567,7 @@ export struct ProfilePage {
               Text(`${this.courseCount}`)
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(AppTheme.BRAND)
+                .fontColor(this.brandTextColor)
               Text('本学期课程')
                 .fontSize(AppTheme.FONT_TINY)
                 .fontColor(AppTheme.TEXT_SECONDARY)
@@ -385,7 +578,7 @@ export struct ProfilePage {
               Text(`${this.examCount}`)
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(AppTheme.BRAND)
+                .fontColor(this.brandTextColor)
               Text('考试')
                 .fontSize(AppTheme.FONT_TINY)
                 .fontColor(AppTheme.TEXT_SECONDARY)
@@ -395,6 +588,7 @@ export struct ProfilePage {
           }
           .width('100%')
           .padding({ top: 2, bottom: 2 })
+          .translate({ x: 6 })
         }
         .width('100%')
         .padding(18)
@@ -406,7 +600,7 @@ export struct ProfilePage {
         this.sectionLabel('校园与效率')
         Column() {
           SettingsRow({
-            icon: $r('sys.symbol.list_square'),
+            icon: $r('sys.symbol.square_fill_grid_2x2'),
             label: '桌面小组件',
             value: '3 款',
             onTap: () => this.toast('长按桌面空白处，添加工大助手卡片')
@@ -417,6 +611,13 @@ export struct ProfilePage {
             label: '外观',
             value: '主题、材质与动效',
             onTap: () => this.onOpenAppearance()
+          })
+          Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
+          SettingsRow({
+            icon: $r('sys.symbol.list_square'),
+            label: '功能设置',
+            value: '授课内容、校园新闻',
+            onTap: () => this.onOpenFeatures()
           })
         }
         .width('100%')
@@ -432,7 +633,13 @@ export struct ProfilePage {
             icon: $r('sys.symbol.calendar'),
             label: '当前学期',
             value: this.semesterName.length > 0 ? this.semesterName : '未设置学期',
-            onTap: () => this.nav.onOpenSemester()
+            onTap: () => {
+              if (this.semester === null) {
+                this.onOpenSync();
+              } else {
+                this.nav.onOpenSemester();
+              }
+            }
           })
           Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
           SettingsRow({
@@ -443,7 +650,7 @@ export struct ProfilePage {
           })
           Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
           SettingsToggleRow({
-            icon: $r('sys.symbol.calendar'),
+            icon: $r('sys.symbol.arrow_clockwise'),
             label: '系统日历同步',
             detail: '未来 21 天课程写入系统日历',
             isOn: this.calendarSyncEnabled,
@@ -457,26 +664,6 @@ export struct ProfilePage {
               } else if (!ok) {
                 this.toast('请先允许日历权限');
               }
-            }
-          })
-        }
-        .width('100%')
-        .backgroundColor($r('app.color.profile_card_bg'))
-        .borderRadius(18)
-        .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK)
-        .border({ width: 0.5, color: '#66FFFFFF' })
-        .clip(true)
-
-        this.sectionLabel('显示')
-        Column() {
-          SettingsToggleRow({
-            icon: $r('sys.symbol.doc_plaintext'),
-            label: '课表显示授课内容',
-            detail: '显示教务同步的 sknrjj 授课内容',
-            isOn: this.showCourseContent,
-            onToggle: (isOn: boolean) => {
-              this.showCourseContent = isOn;
-              DisplaySettings.set(this.getUIContext().getHostContext() as common.UIAbilityContext, isOn);
             }
           })
         }
@@ -520,9 +707,9 @@ export struct ProfilePage {
         this.sectionLabel('其他')
         Column() {
           SettingsRow({
-            icon: $r('sys.symbol.person'),
+            icon: $r('sys.symbol.info_circle'),
             label: '关于工大助手',
-            value: '1.0.0',
+            value: '1.1.0',
             showChevron: true,
             onTap: () => this.onOpenAbout()
           })
@@ -555,5 +742,16 @@ export struct ProfilePage {
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .backgroundColor(AppTheme.BG)
     .scrollBar(BarState.Off)
+    .bindSheet(this.showNameSheet, this.nameSheetBuilder(), {
+      height: SheetSize.FIT_CONTENT,
+      dragBar: true,
+      showClose: false,
+      blurStyle: BlurStyle.COMPONENT_ULTRA_THICK,
+      backgroundColor: AppTheme.SHEET_BG,
+      radius: { topLeft: 32, topRight: 32, bottomLeft: 0, bottomRight: 0 },
+      onDisappear: () => {
+        this.showNameSheet = false;
+      }
+    })
   }
 }

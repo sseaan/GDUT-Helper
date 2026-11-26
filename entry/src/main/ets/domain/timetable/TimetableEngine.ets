@@ -3,8 +3,10 @@ import {
   Course,
   CourseException,
   ExceptionType,
-  ExpandedCourse
+  ExpandedCourse,
+  displayCourseName
 } from '../model/TimetableModels';
+import { DEFAULT_PERIOD_TIMES } from '../model/Periods';
 
 /** Date-only helpers; all arithmetic uses UTC to avoid DST shifts. */
 export function parseIsoDate(value: string): Date {
@@ -90,7 +92,7 @@ export function expandWeek(
         courseId: course.id,
         exceptionId: exception.id,
         week: week,
-        name: course.name,
+        name: displayCourseName(course.name),
         teacher: course.teacher,
         room: exception.newRoom.length > 0 ? exception.newRoom : course.room,
         weekday: exception.newWeekday > 0 ? exception.newWeekday : course.weekday,
@@ -107,7 +109,7 @@ export function expandWeek(
         courseId: course.id,
         exceptionId: '',
         week: week,
-        name: course.name,
+        name: displayCourseName(course.name),
         teacher: course.teacher,
         room: course.room,
         weekday: course.weekday,
@@ -122,6 +124,28 @@ export function expandWeek(
     }
   }
   return result;
+}
+
+/** True when the course's end period on the given date has already passed. */
+export function isCourseEndedOn(date: Date, endPeriod: number, now: Date = new Date()): boolean {
+  const today: Date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const target: Date = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  if (target.getTime() < today.getTime()) {
+    return true;
+  }
+  if (target.getTime() > today.getTime()) {
+    return false;
+  }
+  const index: number = Math.min(endPeriod - 1, DEFAULT_PERIOD_TIMES.length - 1);
+  if (index < 0) {
+    return false;
+  }
+  const endParts: string[] = DEFAULT_PERIOD_TIMES[index][1].split(':');
+  if (endParts.length !== 2) {
+    return false;
+  }
+  const endMinutes: number = Number.parseInt(endParts[0], 10) * 60 + Number.parseInt(endParts[1], 10);
+  return now.getHours() * 60 + now.getMinutes() >= endMinutes;
 }
 
 export function coursesOnDate(

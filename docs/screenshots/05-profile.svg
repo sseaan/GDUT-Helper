@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <rect width="390" height="844" rx="36" fill="#F2F3F5"/>
+  <rect x="18" y="18" width="354" height="808" rx="28" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <circle cx="195" cy="210" r="54" fill="#EAF1FF"/>
+  <path d="M171 196h48v38h-48z" fill="none" stroke="#0A59F7" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M171 210h48" stroke="#0A59F7" stroke-width="3"/>
+  <text x="195" y="322" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="28" font-weight="700" fill="#182431">我的</text>
+  <text x="195" y="358" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14" fill="#8A9099">页面截图待补充</text>
+  <rect x="112" y="742" width="166" height="46" rx="23" fill="#F5F6F7"/>
+  <text x="195" y="771" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" fill="#A0A5AD">SCREENSHOT PLACEHOLDER</text>
+</svg>

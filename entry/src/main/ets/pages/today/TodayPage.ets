@@ -12,14 +12,17 @@ import {
   weekdayLabel
 } from '../../domain/model/TimetableModels';
 import { DEFAULT_PERIOD_TIMES } from '../../domain/model/Periods';
-import { coursesOnDate, todayIso, weekOf, parseIsoDate } from '../../domain/timetable/TimetableEngine';
+import { coursesOnDate, isCourseEndedOn, todayIso, weekOf, parseIsoDate } from '../../domain/timetable/TimetableEngine';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { WidgetSnapshotService } from '../../services/widget/WidgetSnapshotService';
 
 @Component
 export struct TodayPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   nav: AppNavActions = new AppNavActions();
   @StorageLink('timetableRevision') @Watch('onRevisionChange') revision: number = 0;
+  @StorageLink('clockTick') @Watch('onClockTick') clockTick: number = 0;
   @State semester: Semester | null = null;
   @State courses: ExpandedCourse[] = [];
   @State dbEvents: Event[] = [];
@@ -27,10 +30,30 @@ export struct TodayPage {
   @State loading: boolean = true;
   @State selectedCourse: ExpandedCourse | null = null;
   @State showCourseSheet: boolean = false;
-  private today: Date = new Date();
+  @State nowMs: number = Date.now();
+  private dayAnchor: string = '';
 
   aboutToAppear(): void {
+    this.dayAnchor = this.localDayKey(new Date());
     this.load();
+  }
+
+  aboutToDisappear(): void {
+    this.dayAnchor = '';
+  }
+
+  private localDayKey(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  }
+
+  private onClockTick(): void {
+    const now: Date = new Date();
+    this.nowMs = now.getTime();
+    const key: string = this.localDayKey(now);
+    if (key !== this.dayAnchor) {
+      this.dayAnchor = key;
+      this.load();
+    }
   }
 
   onRevisionChange(): void {
@@ -74,12 +97,13 @@ export struct TodayPage {
   }
 
   private dateLabel(): string {
-    return `${this.today.getMonth() + 1}月${this.today.getDate()}日`;
+    const today: Date = new Date(this.nowMs);
+    return `${today.getMonth() + 1}月${today.getDate()}日`;
   }
 
   private weekdayLabelToday(): string {
     const labels: string[] = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-    return labels[this.today.getDay()];
+    return labels[new Date(this.nowMs).getDay()];
   }
 
   private termLabel(): string {
@@ -109,11 +133,13 @@ export struct TodayPage {
   }
 
   private todayExams(): Event[] {
-    const today: Date = new Date();
+    const today: Date = new Date(this.nowMs);
     const start: number = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
     const end: number = start + 86400000;
-    return this.dbEvents.filter((event: Event) =>
+    const events: Event[] = this.dbEvents.filter((event: Event) =>
       event.startTime >= start && event.startTime < end);
+    events.sort((a: Event, b: Event) => a.startTime - b.startTime);
+    return events;
   }
 
   private examTime(event: Event): string {
@@ -124,7 +150,7 @@ export struct TodayPage {
   }
 
   private nextCourse(): ExpandedCourse | null {
-    const now: Date = new Date();
+    const now: Date = new Date(this.nowMs);
     const current: number = now.getHours() * 60 + now.getMinutes();
     for (const course of this.courses) {
       const index: number = course.endPeriod - 1;
@@ -146,11 +172,82 @@ export struct TodayPage {
     return `${DEFAULT_PERIOD_TIMES[start][0]}–${DEFAULT_PERIOD_TIMES[end][1]}`;
   }
 
+  private isEnded(course: ExpandedCourse): boolean {
+    const now: Date = new Date(this.nowMs);
+    const today: Date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    return isCourseEndedOn(today, course.endPeriod, now);
+  }
+
+  private courseBackground(course: ExpandedCourse): string {
+    return this.isEnded(course)
+      ? CoursePalette.PAST_BACKGROUND : CoursePalette.background(course.colorKey);
+  }
+
+  private courseForeground(course: ExpandedCourse): string {
+    return this.isEnded(course)
+      ? CoursePalette.PAST_FOREGROUND : CoursePalette.foreground(course.colorKey);
+  }
+
   private openCourse(course: ExpandedCourse): void {
     if (this.todayWeek >= 1) {
       this.selectedCourse = course;
       this.showCourseSheet = true;
     }
+  }
+
+  private eventBackground(event: Event): string {
+    return event.category === 'EXAM' ? '#FBE4E1' : '#DCEBF5';
+  }
+
+  private eventForeground(event: Event): string {
+    return event.category === 'EXAM' ? '#5C1712' : '#203B52';
+  }
+
+  private openEvent(event: Event): void {
+    if (this.semester !== null) {
+      this.nav.onAddEvent(this.semester.id, todayIso(), event.id);
+    }
+  }
+
+  @Builder
+  examCard(event: Event) {
+    Row({ space: AppTheme.SPACE_MD }) {
+      Column({ space: 2 }) {
+        Text(this.examTime(event))
+          .fontSize(AppTheme.FONT_CAPTION)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.eventForeground(event))
+        Text(event.category === 'EXAM' ? '考试' : '日程')
+          .fontSize(9)
+          .fontColor(this.eventForeground(event))
+          .opacity(0.72)
+      }
+      .width(64)
+      .alignItems(HorizontalAlign.Start)
+
+      Column({ space: 3 }) {
+        Text(event.title)
+          .fontSize(AppTheme.FONT_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.eventForeground(event))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${event.location.length > 0 ? event.location : '地点待定'}${event.note.length > 0 ? ' · ' + event.note : ''}`)
+          .fontSize(AppTheme.FONT_TINY)
+          .fontColor(this.eventForeground(event))
+          .opacity(0.8)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height(70)
+    .padding({ left: AppTheme.CARD_PADDING, right: AppTheme.CARD_PADDING })
+    .backgroundColor(this.eventBackground(event))
+    .borderRadius(14)
+    .onClick(() => this.openEvent(event))
   }
 
   @Builder
@@ -160,10 +257,10 @@ export struct TodayPage {
         Text(this.timeLabel(course))
           .fontSize(AppTheme.FONT_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(CoursePalette.foreground(course.colorKey))
+          .fontColor(this.courseForeground(course))
         Text(`${course.startPeriod}–${course.endPeriod} 节`)
           .fontSize(9)
-          .fontColor(CoursePalette.foreground(course.colorKey))
+          .fontColor(this.courseForeground(course))
           .opacity(0.72)
       }
       .width(52)
@@ -174,15 +271,15 @@ export struct TodayPage {
           Text(course.name)
             .fontSize(AppTheme.FONT_BODY)
             .fontWeight(FontWeight.Medium)
-            .fontColor(CoursePalette.foreground(course.colorKey))
+            .fontColor(this.courseForeground(course))
             .maxLines(1)
             .layoutWeight(1)
           if (course.isException) {
             Text('调整')
               .fontSize(9)
-              .fontColor(CoursePalette.foreground(course.colorKey))
+              .fontColor(this.courseForeground(course))
               .padding({ left: 5, right: 5, top: 1, bottom: 1 })
-              .border({ width: 0.5, color: CoursePalette.foreground(course.colorKey) })
+              .border({ width: 0.5, color: this.courseForeground(course) })
               .borderRadius(6)
           }
         }
@@ -190,7 +287,7 @@ export struct TodayPage {
 
         Text(`${course.room.length > 0 ? course.room : '未填写教室'}${course.teacher.length > 0 ? ' · ' + course.teacher : ''}`)
           .fontSize(AppTheme.FONT_TINY)
-          .fontColor(CoursePalette.foreground(course.colorKey))
+          .fontColor(this.courseForeground(course))
           .opacity(0.78)
           .maxLines(1)
       }
@@ -200,7 +297,7 @@ export struct TodayPage {
     .width('100%')
     .height(70)
     .padding({ left: AppTheme.CARD_PADDING, right: AppTheme.CARD_PADDING })
-    .backgroundColor(CoursePalette.background(course.colorKey))
+    .backgroundColor(this.courseBackground(course))
     .borderRadius(14)
     .onClick(() => this.openCourse(course))
   }
@@ -256,7 +353,7 @@ export struct TodayPage {
           Column({ space: AppTheme.SPACE_MD }) {
             SymbolGlyph($r('sys.symbol.calendar'))
               .fontSize(36)
-              .fontColor([AppTheme.BRAND])
+              .fontColor([this.brandTextColor])
             Text($r('app.string.today_no_semester_title'))
               .fontSize(AppTheme.FONT_HEADING)
               .fontWeight(FontWeight.Medium)
@@ -268,7 +365,7 @@ export struct TodayPage {
               .lineHeight(20)
             Button($r('app.string.today_create_semester'))
               .height(40)
-              .onClick(() => this.nav.onOpenSemester())
+              .onClick(() => this.nav.onOpenSync())
           }
           .width('100%')
           .padding(AppTheme.SPACE_XL)
@@ -298,7 +395,7 @@ export struct TodayPage {
           Column({ space: AppTheme.SPACE_MD }) {
             SymbolGlyph($r('sys.symbol.clock'))
               .fontSize(36)
-              .fontColor([AppTheme.BRAND])
+              .fontColor([this.brandTextColor])
             Text($r('app.string.today_empty_title'))
               .fontSize(AppTheme.FONT_HEADING)
               .fontWeight(FontWeight.Medium)
@@ -341,31 +438,7 @@ export struct TodayPage {
             }
             .width('100%')
             ForEach(this.todayExams(), (event: Event) => {
-              Row({ space: AppTheme.SPACE_MD }) {
-                Text(this.examTime(event))
-                  .fontSize(AppTheme.FONT_CAPTION)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(event.category === 'EXAM' ? '#A12B22' : '#315F7E')
-                  .width(76)
-                Column({ space: 2 }) {
-                  Text(event.title)
-                    .fontSize(AppTheme.FONT_BODY)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(event.category === 'EXAM' ? '#5C1712' : '#203B52')
-                    .maxLines(1)
-                  Text(`${event.location.length > 0 ? event.location : '考场待定'}${event.note.length > 0 ? ' · ' + event.note : ''}`)
-                    .fontSize(AppTheme.FONT_TINY)
-                    .fontColor(event.category === 'EXAM' ? '#7B3028' : '#3F5A72')
-                    .maxLines(1)
-                }
-                .alignItems(HorizontalAlign.Start)
-                .layoutWeight(1)
-              }
-              .width('100%')
-              .height(64)
-              .padding({ left: AppTheme.CARD_PADDING, right: AppTheme.CARD_PADDING })
-              .backgroundColor(event.category === 'EXAM' ? '#FBE4E1' : '#DCEBF5')
-              .borderRadius(14)
+              this.examCard(event)
             }, (event: Event) => event.id)
           }
           .width('100%')

@@ -9,5 +9,6 @@ export interface SyncPlan {
   examsLoaded: boolean;
   hasRemoteCourses: boolean;
   startDate: string;
+  totalWeeks: number;
   warnings: string[];
 }

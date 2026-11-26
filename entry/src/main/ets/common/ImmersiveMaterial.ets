@@ -30,6 +30,19 @@ export class ImmersiveMaterial {
   }
 
   static level(): hdsMaterial.MaterialLevel {
+    if (!ImmersiveMaterial.supported()) {
+      return hdsMaterial.MaterialLevel.SMOOTH;
+    }
+    const value: number = AppearanceSettings.materialLevel();
+    if (value === 0) {
+      return hdsMaterial.MaterialLevel.EXQUISITE;
+    }
+    if (value === 1) {
+      return hdsMaterial.MaterialLevel.GENTLE;
+    }
+    if (value === 2) {
+      return hdsMaterial.MaterialLevel.SMOOTH;
+    }
     return hdsMaterial.MaterialLevel.ADAPTIVE;
   }
 

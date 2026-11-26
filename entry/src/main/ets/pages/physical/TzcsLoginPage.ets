@@ -8,6 +8,8 @@ const LOGIN_URL: string = 'http://tzcs.gdut.edu.cn/Src/PlatForm/user/Login_m.asp
 
 @Component
 export struct TzcsLoginPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   onDone: () => void = () => {};
   private controller: webview.WebviewController = new webview.WebviewController();
   @State loading: boolean = true;
@@ -71,7 +73,7 @@ export struct TzcsLoginPage {
               LoadingProgress()
                 .width(30)
                 .height(30)
-                .color(AppTheme.BRAND)
+                .color(this.brandTextColor)
               Text('正在打开体测平台…')
                 .fontSize(AppTheme.FONT_CAPTION)
                 .fontColor(AppTheme.TEXT_SECONDARY)

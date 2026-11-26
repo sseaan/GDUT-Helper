@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { AppTheme } from '../../common/Theme';
+import { ThemeColor } from '../../common/ThemeColor';
 import { AppNavActions } from '../../common/AppNavActions';
 import { CoursePalette } from '../../common/CoursePalette';
 import { CourseSheet } from '../../components/CourseSheet';
@@ -26,8 +27,11 @@ import { DisplaySettings } from '../../state/DisplaySettings';
 
 @Component
 export struct TimetablePage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   nav: AppNavActions = new AppNavActions();
   @StorageLink('timetableRevision') @Watch('onRevisionChange') revision: number = 0;
+  @StorageLink('clockTick') @Watch('onClockTick') clockTick: number = 0;
   @State semester: Semester | null = null;
   @State week: number = 1;
   @State expanded: ExpandedCourse[] = [];
@@ -36,6 +40,7 @@ export struct TimetablePage {
   @State loading: boolean = true;
   @State selectedCourse: ExpandedCourse | null = null;
   @State showCourseSheet: boolean = false;
+  @State nowMs: number = Date.now();
   private courses: Course[] = [];
   private exceptions: CourseException[] = [];
   private initializedWeek: boolean = false;
@@ -50,6 +55,10 @@ export struct TimetablePage {
 
   onRevisionChange(): void {
     this.loadAll();
+  }
+
+  private onClockTick(): void {
+    this.nowMs = Date.now();
   }
 
   private context(): common.UIAbilityContext {
@@ -134,7 +143,7 @@ export struct TimetablePage {
     if (this.semester === null) {
       return -1;
     }
-    const now: Date = new Date();
+    const now: Date = new Date(this.nowMs);
     const today: Date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     const currentWeek: number = weekOf(this.semester.startDate, today);
     if (currentWeek !== this.week) {
@@ -156,7 +165,7 @@ export struct TimetablePage {
     if (this.semester !== null) {
       this.nav.onAddCourse(this.semester.id);
     } else {
-      this.nav.onOpenSemester();
+      this.nav.onOpenSync();
     }
   }
 
@@ -169,12 +178,12 @@ export struct TimetablePage {
     Column({ space: 3 }) {
       Text(weekdayLabel(index + 1).replace('周', ''))
         .fontSize(AppTheme.FONT_TINY)
-        .fontColor(index === this.todayIndex() ? AppTheme.BRAND : AppTheme.TEXT_SECONDARY)
+        .fontColor(index === this.todayIndex() ? this.brandTextColor : AppTheme.TEXT_SECONDARY)
       Text(this.dateLabel(index))
         .fontSize(AppTheme.FONT_TINY)
-        .fontColor(index === this.todayIndex() ? AppTheme.BRAND : AppTheme.TEXT_TERTIARY)
+        .fontColor(index === this.todayIndex() ? this.brandTextColor : AppTheme.TEXT_TERTIARY)
         .padding({ left: 7, right: 7, top: 2, bottom: 2 })
-        .backgroundColor(index === this.todayIndex() ? '#1A0A59F7' : Color.Transparent)
+        .backgroundColor(index === this.todayIndex() ? ThemeColor.alpha(this.brandColor, 0.1) : Color.Transparent)
         .borderRadius(8)
     }
     .layoutWeight(1)
@@ -186,7 +195,7 @@ export struct TimetablePage {
     if (this.semester === null) {
       return false;
     }
-    const now: Date = new Date();
+    const now: Date = new Date(this.nowMs);
     const today: Date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     const currentWeek: number = weekOf(this.semester.startDate, today);
     if (this.week < currentWeek) {
@@ -213,11 +222,11 @@ export struct TimetablePage {
   }
 
   private courseBackground(course: ExpandedCourse): string {
-    return this.isPastCourse(course) ? '#ECEFF1' : CoursePalette.background(course.colorKey);
+    return this.isPastCourse(course) ? CoursePalette.PAST_BACKGROUND : CoursePalette.background(course.colorKey);
   }
 
   private courseForeground(course: ExpandedCourse): string {
-    return this.isPastCourse(course) ? '#9AA1A8' : CoursePalette.foreground(course.colorKey);
+    return this.isPastCourse(course) ? CoursePalette.PAST_FOREGROUND : CoursePalette.foreground(course.colorKey);
   }
 
   @Builder
@@ -396,7 +405,7 @@ export struct TimetablePage {
           Column({ space: AppTheme.SPACE_MD }) {
             SymbolGlyph($r('sys.symbol.calendar'))
               .fontSize(36)
-              .fontColor([AppTheme.BRAND])
+              .fontColor([this.brandTextColor])
             Text($r('app.string.timetable_no_semester_title'))
               .fontSize(AppTheme.FONT_HEADING)
               .fontWeight(FontWeight.Medium)
@@ -407,7 +416,7 @@ export struct TimetablePage {
               .textAlign(TextAlign.Center)
             Button($r('app.string.today_create_semester'))
               .height(38)
-              .onClick(() => this.nav.onOpenSemester())
+              .onClick(() => this.nav.onOpenSync())
           }
           .width('100%')
           .padding(AppTheme.SPACE_XL)

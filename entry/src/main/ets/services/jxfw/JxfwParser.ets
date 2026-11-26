@@ -244,6 +244,69 @@ export class JxfwParser {
     return name.trim().replace(/^体育[（(]\d+[)）]$/, '体育');
   }
 
+  /**
+   * Extracts the student name from jxfw pages. Different pages expose it as an
+   * input value, a labelled cell, or plain text; try the common shapes and keep
+   * only Han-character names so labels such as 学号/性别 are never shown.
+   */
+  static studentName(html: string): string {
+    if (html.length === 0) {
+      return '';
+    }
+    const inputPatterns: RegExp[] = [
+      /<input[^>]*(?:id|name)\s*=\s*["'](?:xm|xsxm|sname|studentName|cnname|xm_zh)["'][^>]*value\s*=\s*["']([^"']{2,20})["']/i,
+      /<input[^>]*value\s*=\s*["']([^"']{2,20})["'][^>]*(?:id|name)\s*=\s*["'](?:xm|xsxm|sname|studentName|cnname|xm_zh)["']/i,
+      /<(?:span|div|td|label)[^>]*(?:id|name)\s*=\s*["'](?:xm|xsxm|sname|studentName|cnname)["'][^>]*>([^<]{2,20})</i
+    ];
+    for (const pattern of inputPatterns) {
+      const match: RegExpExecArray | null = pattern.exec(html);
+      if (match !== null) {
+        const name: string = JxfwParser.validStudentName(match[1]);
+        if (name.length > 0) {
+          return name;
+        }
+      }
+    }
+    const text: string = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ');
+    const textPatterns: RegExp[] = [
+      /(?:学生姓名|姓\s*名)\s*[：:]\s*([\u3400-\u9fff·]{2,12})/,
+      /(?:学生姓名|姓\s*名)\s+([\u3400-\u9fff·]{2,12})/,
+      /(?:欢迎[您你]?)\s*[：:，,\s]+([\u3400-\u9fff·]{2,12})/
+    ];
+    for (const pattern of textPatterns) {
+      const match: RegExpExecArray | null = pattern.exec(text);
+      if (match !== null) {
+        const name: string = JxfwParser.validStudentName(match[1]);
+        if (name.length > 0) {
+          return name;
+        }
+      }
+    }
+    return '';
+  }
+
+  private static validStudentName(value: string): string {
+    const name: string = value.replace(/\s+/g, '').trim();
+    if (!/^[\u3400-\u9fff·]{2,12}$/.test(name)) {
+      return '';
+    }
+    const blocked: string[] = ['姓名', '学生姓名', '学号', '性别', '出生', '民族', '学院',
+      '专业', '班级', '校区', '学籍', '在读', '欢迎'];
+    for (const word of blocked) {
+      if (name.includes(word)) {
+        return '';
+      }
+    }
+    return name;
+  }
+
   static colorKey(name: string): number {
     let hash: number = 0;
     for (let i = 0; i < name.length; i++) {

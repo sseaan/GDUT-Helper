@@ -5,6 +5,8 @@ import { ReminderService } from '../services/reminder/ReminderService';
 import { SystemCalendarSyncService } from '../services/calendar/SystemCalendarSyncService';
 import { WidgetSnapshotService } from '../services/widget/WidgetSnapshotService';
 import { AppearanceSettings } from '../state/AppearanceSettings';
+import { DisplaySettings } from '../state/DisplaySettings';
+import { ClockTicker } from '../state/ClockTicker';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'GDUTHelper';
@@ -15,6 +17,7 @@ export default class EntryAbility extends UIAbility {
     AppearanceSettings.load(this.context).then((mode) => {
       AppearanceSettings.apply(this.context, mode);
     }).catch(() => {});
+    DisplaySettings.load(this.context).catch(() => {});
   }
 
   onDestroy(): void {
@@ -44,6 +47,7 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     hilog.info(DOMAIN, TAG, '%{public}s', 'EntryAbility onForeground');
+    ClockTicker.bump();
     ReminderService.refreshIfEnabled(this.context).catch(() => {});
     SystemCalendarSyncService.refreshIfEnabled(this.context).catch(() => {});
     WidgetSnapshotService.write(this.context).catch(() => {});

@@ -1,6 +1,8 @@
 import { common } from '@kit.AbilityKit';
+import { uiMaterial } from '@kit.ArkUI';
 import { DividerMode, HdsTabs, HdsTabsController } from '@kit.UIDesignKit';
 import { AppTheme } from '../../common/Theme';
+import { ThemeColor } from '../../common/ThemeColor';
 import { AppNavActions } from '../../common/AppNavActions';
 import { CoursePalette } from '../../common/CoursePalette';
 import { CourseSheet } from '../../components/CourseSheet';
@@ -14,7 +16,7 @@ import {
   Semester
 } from '../../domain/model/TimetableModels';
 import { DEFAULT_PERIOD_TIMES } from '../../domain/model/Periods';
-import { expandWeek, isoDate, parseIsoDate, weekOf } from '../../domain/timetable/TimetableEngine';
+import { expandWeek, isCourseEndedOn, isoDate, parseIsoDate, weekOf } from '../../domain/timetable/TimetableEngine';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { AgendaItem, AgendaKind, agendaForDate } from '../../domain/agenda/AgendaEngine';
 
@@ -24,20 +26,33 @@ interface CalendarCell {
   date: Date;
 }
 
+function todayUtc(): Date {
+  const now: Date = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
 @Component
 export struct CalendarPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   nav: AppNavActions = new AppNavActions();
   @StorageLink('timetableRevision') @Watch('onRevisionChange') revision: number = 0;
+  @StorageLink('clockTick') @Watch('onClockTick') clockTick: number = 0;
   @StorageLink('immersiveEnabled') immersiveEnabled: boolean = true;
+  @StorageLink('materialLevel') materialLevel: number = 10;
   @StorageLink('handednessEnabled') handednessEnabled: boolean = true;
   @State semester: Semester | null = null;
-  @State monthOffset: number = 0;
-  @State selectedDay: number = new Date().getDate();
+  @State selectedTime: number = todayUtc().getTime();
   @State mode: string = 'month';
+  @State nowMs: number = Date.now();
   @State courses: Course[] = [];
   @State selectedCourse: ExpandedCourse | null = null;
   @State showSheet: boolean = false;
   @State sheetMode: string = 'course';
+  @State weekStripWidth: number = 0;
+  @State weekHighlightX: number = 0;
+  @State weekHighlightWidth: number = 0;
   @State exceptions: CourseException[] = [];
   @State dbEvents: Event[] = [];
   private fabController: HdsTabsController = new HdsTabsController();
@@ -76,35 +91,37 @@ export struct CalendarPage {
   }
 
   private currentMonth(): Date {
-    const now: Date = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + this.monthOffset, 1);
+    const selected: Date = this.selectedDate();
+    return new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(), 1));
   }
 
   private monthLabel(): string {
     const month: Date = this.currentMonth();
-    return `${month.getFullYear()}年${month.getMonth() + 1}月`;
+    return `${month.getUTCFullYear()}年${month.getUTCMonth() + 1}月`;
   }
 
   private weeks(): CalendarCell[][] {
     const month: Date = this.currentMonth();
-    const firstDay: Date = new Date(Date.UTC(month.getFullYear(), month.getMonth(), 1));
+    const year: number = month.getUTCFullYear();
+    const monthIndex: number = month.getUTCMonth();
+    const firstDay: Date = new Date(Date.UTC(year, monthIndex, 1));
     const firstWeekday: number = (firstDay.getUTCDay() + 6) % 7;
-    const daysInMonth: number = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const previousMonthDays: number = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
+    const daysInMonth: number = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+    const previousMonthDays: number = new Date(Date.UTC(year, monthIndex, 0)).getUTCDate();
     const cells: CalendarCell[] = [];
     for (let i = firstWeekday; i > 0; i--) {
       const day: number = previousMonthDays - i + 1;
       cells.push({
         day: day,
         inMonth: false,
-        date: new Date(Date.UTC(month.getFullYear(), month.getMonth() - 1, day))
+        date: new Date(Date.UTC(year, monthIndex - 1, day))
       });
     }
     for (let day = 1; day <= daysInMonth; day++) {
       cells.push({
         day: day,
         inMonth: true,
-        date: new Date(Date.UTC(month.getFullYear(), month.getMonth(), day))
+        date: new Date(Date.UTC(year, monthIndex, day))
       });
     }
     let nextDay: number = 1;
@@ -112,7 +129,7 @@ export struct CalendarPage {
       cells.push({
         day: nextDay,
         inMonth: false,
-        date: new Date(Date.UTC(month.getFullYear(), month.getMonth() + 1, nextDay))
+        date: new Date(Date.UTC(year, monthIndex + 1, nextDay))
       });
       nextDay++;
     }
@@ -124,10 +141,40 @@ export struct CalendarPage {
   }
 
   private selectedDate(): Date {
-    const month: Date = this.currentMonth();
-    const lastDay: number = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const day: number = Math.min(this.selectedDay, lastDay);
-    return new Date(Date.UTC(month.getFullYear(), month.getMonth(), day));
+    return new Date(this.selectedTime);
+  }
+
+  private weekSelectedIndex(): number {
+    return (this.selectedDate().getUTCDay() + 6) % 7;
+  }
+
+  private weekStartTime(): number {
+    return this.weekStart().getTime();
+  }
+
+  private updateWeekHighlight(animated: boolean): void {
+    if (this.weekStripWidth <= 0) {
+      return;
+    }
+    const columnWidth: number = this.weekStripWidth / 7;
+    const targetX: number = this.weekSelectedIndex() * columnWidth;
+    if (animated) {
+      this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+        this.weekHighlightX = targetX;
+        this.weekHighlightWidth = columnWidth;
+      });
+    } else {
+      this.weekHighlightX = targetX;
+      this.weekHighlightWidth = columnWidth;
+    }
+  }
+
+  private selectDate(date: Date): void {
+    const oldWeekStart: number = this.weekStartTime();
+    this.selectedTime = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(),
+      date.getUTCDate())).getTime();
+    const sameWeek: boolean = oldWeekStart === this.weekStartTime();
+    this.updateWeekHighlight(this.mode === 'week' && sameWeek);
   }
 
   private selectedDateLabel(): string {
@@ -188,10 +235,12 @@ export struct CalendarPage {
   }
 
   private isTodayDate(date: Date): boolean {
-    const now: Date = new Date();
-    return date.getUTCFullYear() === now.getFullYear()
-      && date.getUTCMonth() === now.getMonth()
-      && date.getUTCDate() === now.getDate();
+    const today: Date = todayUtc();
+    return isoDate(date) === isoDate(today);
+  }
+
+  private isSelectedDate(date: Date): boolean {
+    return isoDate(date) === isoDate(this.selectedDate());
   }
 
   private hasCoursesOn(date: Date): boolean {
@@ -203,14 +252,32 @@ export struct CalendarPage {
     return this.dbEvents.some((event: Event) => isoDate(new Date(event.startTime)) === key);
   }
 
-  private previousMonth(): void {
-    this.monthOffset = this.monthOffset - 1;
-    this.selectedDay = 1;
+  private previous(): void {
+    if (this.mode === 'week') {
+      this.shiftDays(-7);
+    } else {
+      const month: Date = this.currentMonth();
+      this.selectDate(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)));
+    }
   }
 
-  private nextMonth(): void {
-    this.monthOffset = this.monthOffset + 1;
-    this.selectedDay = 1;
+  private next(): void {
+    if (this.mode === 'week') {
+      this.shiftDays(7);
+    } else {
+      const month: Date = this.currentMonth();
+      this.selectDate(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)));
+    }
+  }
+
+  private shiftDays(days: number): void {
+    const selected: Date = this.selectedDate();
+    this.selectDate(new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(),
+      selected.getUTCDate() + days)));
+  }
+
+  private goToday(): void {
+    this.selectDate(todayUtc());
   }
 
   private weekStart(): Date {
@@ -240,8 +307,26 @@ export struct CalendarPage {
     if (this.semester !== null) {
       this.nav.onAddCourse(this.semester.id);
     } else {
-      this.nav.onOpenSemester();
+      this.nav.onOpenSync();
     }
+  }
+
+  private isEnded(course: ExpandedCourse): boolean {
+    return isCourseEndedOn(this.selectedDate(), course.endPeriod, new Date(this.nowMs));
+  }
+
+  private onClockTick(): void {
+    this.nowMs = Date.now();
+  }
+
+  private courseBackground(course: ExpandedCourse): string {
+    return this.isEnded(course)
+      ? CoursePalette.PAST_BACKGROUND : CoursePalette.background(course.colorKey);
+  }
+
+  private courseForeground(course: ExpandedCourse): string {
+    return this.isEnded(course)
+      ? CoursePalette.PAST_FOREGROUND : CoursePalette.foreground(course.colorKey);
   }
 
   private openCourse(course: ExpandedCourse): void {
@@ -271,6 +356,9 @@ export struct CalendarPage {
       .textAlign(TextAlign.Center)
       .onClick(() => {
         this.mode = value;
+        if (value === 'week') {
+          this.updateWeekHighlight(false);
+        }
       })
   }
 
@@ -280,15 +368,15 @@ export struct CalendarPage {
       Text(`${cell.day}`)
         .fontSize(AppTheme.FONT_CHIP)
         .fontColor(
-          cell.inMonth && cell.day === this.selectedDay
-            ? AppTheme.ON_BRAND
-            : (cell.inMonth && this.isTodayDate(cell.date) ? AppTheme.BRAND
+          this.isSelectedDate(cell.date)
+            ? this.onBrandColor
+            : (this.isTodayDate(cell.date) ? this.brandTextColor
               : (cell.inMonth ? AppTheme.TEXT_PRIMARY : AppTheme.TEXT_TERTIARY))
         )
         .width(28)
         .height(28)
         .textAlign(TextAlign.Center)
-        .backgroundColor(cell.inMonth && cell.day === this.selectedDay ? AppTheme.BRAND : Color.Transparent)
+        .backgroundColor(this.isSelectedDate(cell.date) ? this.brandColor : Color.Transparent)
         .borderRadius(14)
       Row({ space: 3 }) {
         if (this.hasCoursesOn(cell.date)) {
@@ -296,7 +384,7 @@ export struct CalendarPage {
             .width(4)
             .height(4)
             .borderRadius(2)
-            .backgroundColor(AppTheme.BRAND)
+            .backgroundColor(this.brandColor)
         }
         if (this.hasExamOn(cell.date)) {
           Column()
@@ -313,16 +401,8 @@ export struct CalendarPage {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
-      if (cell.inMonth) {
-        this.selectedDay = cell.day;
-      } else {
-        const targetMonth: Date = new Date(cell.date.getUTCFullYear(), cell.date.getUTCMonth(), 1);
-        const baseMonth: Date = new Date();
-        this.monthOffset = (targetMonth.getFullYear() - baseMonth.getFullYear()) * 12 +
-          targetMonth.getMonth() - baseMonth.getMonth();
-        this.selectedDay = cell.day;
-        this.mode = 'month';
-      }
+      this.selectDate(cell.date);
+      this.mode = 'month';
     })
   }
 
@@ -333,10 +413,10 @@ export struct CalendarPage {
         Text(this.timeLabel(event))
           .fontSize(AppTheme.FONT_CAPTION)
           .fontWeight(FontWeight.Medium)
-          .fontColor(CoursePalette.foreground(event.colorKey))
+          .fontColor(this.courseForeground(event))
         Text(`${event.startPeriod}–${event.endPeriod} 节`)
           .fontSize(9)
-          .fontColor(CoursePalette.foreground(event.colorKey))
+          .fontColor(this.courseForeground(event))
           .opacity(0.7)
       }
       .width(50)
@@ -345,11 +425,11 @@ export struct CalendarPage {
         Text(event.name)
           .fontSize(AppTheme.FONT_BODY)
           .fontWeight(FontWeight.Medium)
-          .fontColor(CoursePalette.foreground(event.colorKey))
+          .fontColor(this.courseForeground(event))
           .maxLines(1)
         Text(`${event.room.length > 0 ? event.room : '未填写教室'}${event.teacher.length > 0 ? ' · ' + event.teacher : ''}`)
           .fontSize(AppTheme.FONT_TINY)
-          .fontColor(CoursePalette.foreground(event.colorKey))
+          .fontColor(this.courseForeground(event))
           .opacity(0.8)
           .maxLines(1)
       }
@@ -359,7 +439,7 @@ export struct CalendarPage {
     .width('100%')
     .height(64)
     .padding({ left: AppTheme.CARD_PADDING, right: AppTheme.CARD_PADDING })
-    .backgroundColor(CoursePalette.background(event.colorKey))
+    .backgroundColor(this.courseBackground(event))
     .borderRadius(14)
     .onClick(() => this.openCourse(event))
   }
@@ -371,13 +451,13 @@ export struct CalendarPage {
         Text(this.eventTime(event))
           .fontSize(AppTheme.FONT_CAPTION)
           .fontWeight(FontWeight.Medium)
-          .fontColor(event.category === 'EXAM' ? '#A12B22' : '#315F7E')
+          .fontColor(event.category === 'EXAM' ? '#5C1712' : '#203B52')
         Text(event.category === 'EXAM' ? '考试' : '日程')
           .fontSize(9)
-          .fontColor(event.category === 'EXAM' ? '#A12B22' : '#315F7E')
-          .opacity(0.7)
+          .fontColor(event.category === 'EXAM' ? '#5C1712' : '#203B52')
+          .opacity(0.72)
       }
-      .width(70)
+      .width(64)
       .alignItems(HorizontalAlign.Start)
       Column({ space: 2 }) {
         Text(event.title)
@@ -385,11 +465,13 @@ export struct CalendarPage {
           .fontWeight(FontWeight.Medium)
           .fontColor(event.category === 'EXAM' ? '#5C1712' : '#203B52')
           .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(`${event.location.length > 0 ? event.location : '地点待定'}${event.note.length > 0 ? ' · ' + event.note : ''}`)
           .fontSize(AppTheme.FONT_TINY)
-          .fontColor(event.category === 'EXAM' ? '#7B3028' : '#3F5A72')
+          .fontColor(event.category === 'EXAM' ? '#5C1712' : '#203B52')
           .opacity(0.8)
-          .maxLines(1)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -400,25 +482,60 @@ export struct CalendarPage {
     .backgroundColor(event.category === 'EXAM' ? '#FBE4E1' : '#DCEBF5')
     .borderRadius(14)
     .onClick(() => {
-      if (event.category !== 'EXAM' && this.semester !== null) {
+      if (this.semester !== null) {
         this.nav.onAddEvent(this.semester.id, isoDate(this.selectedDate()), event.id);
       }
     })
   }
 
+  private fabMaterial(): uiMaterial.Material | undefined {
+    if (!this.immersiveEnabled) {
+      return undefined;
+    }
+    try {
+      if (!uiMaterial.isImmersiveMaterialSupported()) {
+        return undefined;
+      }
+      return new uiMaterial.ImmersiveMaterial({
+        style: uiMaterial.ImmersiveStyle.REGULAR,
+        applyShadow: true,
+        interactive: true,
+        lightEffect: { color: ThemeColor.alpha(this.brandColor, 0.28) }
+      });
+    } catch (error) {
+      return undefined;
+    }
+  }
+
   @Builder
-  fabContent() {
+  fabButton() {
     Stack() {
+      Toggle({ type: ToggleType.Button, isOn: false })
+        .width(56)
+        .height(56)
+        .borderRadius(28)
+        .clip(true)
+        .backgroundColor(Color.Transparent)
+        .selectedColor(Color.Transparent)
+        .systemMaterial(this.fabMaterial())
+        .hitTestBehavior(HitTestMode.None)
+
       SymbolGlyph($r('sys.symbol.plus'))
         .fontSize(24)
-        .fontColor([AppTheme.BRAND])
+        .fontColor([this.brandTextColor])
+        .hitTestBehavior(HitTestMode.None)
     }
     .width(56)
     .height(56)
     .borderRadius(28)
-    .backgroundColor(AppTheme.FAB_BG)
-    .border({ width: 0.5, color: '#80FFFFFF' })
-    .shadow({ radius: 18, color: '#24000000', offsetY: 6 })
+    .backgroundColor(this.fabMaterial() === undefined ? AppTheme.FAB_BG : Color.Transparent)
+    .border({
+      width: this.fabMaterial() === undefined ? 0.5 : 0,
+      color: '#80FFFFFF'
+    })
+    .shadow(this.fabMaterial() === undefined
+      ? { radius: 18, color: '#24000000', offsetY: 6 }
+      : { radius: 0, color: Color.Transparent, offsetY: 0 })
     .align(Alignment.Center)
   }
 
@@ -452,12 +569,12 @@ export struct CalendarPage {
       Stack() {
         SymbolGlyph(icon)
           .fontSize(21)
-          .fontColor([AppTheme.BRAND])
+          .fontColor([this.brandTextColor])
       }
       .width(42)
       .height(42)
       .borderRadius(14)
-      .backgroundColor('#1A0A59F7')
+      .backgroundColor(ThemeColor.alpha(this.brandColor, 0.1))
       Column({ space: 3 }) {
         Text(title)
           .fontSize(AppTheme.FONT_TITLE)
@@ -527,15 +644,6 @@ export struct CalendarPage {
           }
         }
       )
-      this.addActionRow(
-        $r('sys.symbol.arrow_clockwise'),
-        $r('app.string.campus_sync'),
-        $r('app.string.campus_sync_desc'),
-        () => {
-          this.showSheet = false;
-          this.nav.onOpenSync();
-        }
-      )
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 4, bottom: AppTheme.SPACE_XXL })
@@ -565,20 +673,35 @@ export struct CalendarPage {
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
 
-            Row({ space: 2 }) {
-              this.modeButton($r('app.string.calendar_month'), 'month')
-              this.modeButton($r('app.string.calendar_week'), 'week')
+            Row({ space: 8 }) {
+              if (!this.isTodayDate(this.selectedDate())) {
+                Text('今')
+                  .fontSize(AppTheme.FONT_CAPTION)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.brandTextColor)
+                  .width(32)
+                  .height(32)
+                  .textAlign(TextAlign.Center)
+                  .backgroundColor(AppTheme.CARD_BG)
+                  .borderRadius(16)
+                  .onClick(() => this.goToday())
+              }
+
+              Row({ space: 2 }) {
+                this.modeButton($r('app.string.calendar_month'), 'month')
+                this.modeButton($r('app.string.calendar_week'), 'week')
+              }
+              .padding(3)
+              .backgroundColor(AppTheme.CARD_BG)
+              .borderRadius(19)
             }
-            .padding(3)
-            .backgroundColor(AppTheme.CARD_BG)
-            .borderRadius(19)
           }
           .width('100%')
 
           Row() {
             RoundIconButton({
               icon: $r('sys.symbol.chevron_left'),
-              onTap: () => this.previousMonth()
+              onTap: () => this.previous()
             })
             Blank()
             if (this.semester !== null) {
@@ -590,7 +713,7 @@ export struct CalendarPage {
             Blank()
             RoundIconButton({
               icon: $r('sys.symbol.chevron_right'),
-              onTap: () => this.nextMonth()
+              onTap: () => this.next()
             })
           }
           .width('100%')
@@ -613,7 +736,7 @@ export struct CalendarPage {
                   ForEach(week, (cell: CalendarCell, dayIndex: number) => {
                     this.dayCell(cell)
                   }, (cell: CalendarCell, dayIndex: number) =>
-                    `${this.monthLabel()}-${weekIndex}-${dayIndex}-${this.courses.length}-${this.dbEvents.length}-${this.selectedDay}`)
+                    `${this.monthLabel()}-${weekIndex}-${dayIndex}-${this.courses.length}-${this.dbEvents.length}-${isoDate(this.selectedDate())}`)
                 }
                 .width('100%')
               }, (week: CalendarCell[], weekIndex: number) =>
@@ -624,36 +747,69 @@ export struct CalendarPage {
             .backgroundColor(AppTheme.CARD_BG)
             .borderRadius(AppTheme.CARD_RADIUS)
           } else {
-            Row() {
-              ForEach(this.weekdays, (day: string, index: number) => {
-                Column({ space: 2 }) {
-                  Text(this.weekdayShort[index])
-                    .fontSize(AppTheme.FONT_TINY)
-                    .fontColor(AppTheme.TEXT_SECONDARY)
-                  Text(this.weekDate(index))
-                    .fontSize(AppTheme.FONT_BODY)
-                    .fontColor(AppTheme.TEXT_PRIMARY)
-                  if (this.hasExamOn(this.weekDay(index))) {
-                    Column()
-                      .width(4)
-                      .height(4)
-                      .borderRadius(2)
-                      .backgroundColor('#E96565')
-                  } else {
-                    Column().height(4)
-                  }
+            Column() {
+              Stack({ alignContent: Alignment.TopStart }) {
+                if (this.weekHighlightWidth > 0) {
+                  Column()
+                    .width(this.weekHighlightWidth)
+                    .height(54)
+                    .borderRadius(14)
+                    .backgroundColor(ThemeColor.alpha(this.brandColor, 0.1))
+                    .border({ width: 1, color: this.brandColor })
+                    .position({ x: this.weekHighlightX, y: 0 })
                 }
-                .layoutWeight(1)
+                Row() {
+                  ForEach(this.weekdays, (day: string, index: number) => {
+                    Column({ space: 2 }) {
+                      Text(this.weekdayShort[index])
+                        .fontSize(AppTheme.FONT_TINY)
+                        .fontColor(this.isSelectedDate(this.weekDay(index))
+                          ? this.brandTextColor : AppTheme.TEXT_SECONDARY)
+                      Text(this.weekDate(index))
+                        .fontSize(AppTheme.FONT_BODY)
+                        .fontWeight(this.isSelectedDate(this.weekDay(index))
+                          ? FontWeight.Medium : FontWeight.Normal)
+                        .fontColor(this.isSelectedDate(this.weekDay(index))
+                          ? this.brandTextColor : AppTheme.TEXT_PRIMARY)
+                      Row({ space: 3 }) {
+                        if (this.hasCoursesOn(this.weekDay(index))) {
+                          Column()
+                            .width(4)
+                            .height(4)
+                            .borderRadius(2)
+                            .backgroundColor(this.brandTextColor)
+                        }
+                        if (this.hasExamOn(this.weekDay(index))) {
+                          Column()
+                            .width(4)
+                            .height(4)
+                            .borderRadius(2)
+                            .backgroundColor('#E96565')
+                        }
+                      }
+                      .height(4)
+                    }
+                    .layoutWeight(1)
+                    .height(54)
+                    .justifyContent(FlexAlign.Center)
+                    .onClick(() => {
+                      this.selectDate(this.weekDay(index));
+                    })
+                  }, (day: string, index: number) =>
+                    `${this.selectedDate().getTime()}-weekday-${index}-${this.dbEvents.length}`)
+                }
+                .width('100%')
                 .height(54)
-                .justifyContent(FlexAlign.Center)
-                .onClick(() => {
-                  const date: Date = this.weekDay(index);
-                  if (date.getUTCMonth() === this.currentMonth().getMonth()) {
-                    this.selectedDay = date.getUTCDate();
-                  }
-                })
-              }, (day: string, index: number) =>
-                `${this.selectedDate().getTime()}-weekday-${index}-${this.dbEvents.length}`)
+              }
+              .width('100%')
+              .height(54)
+              .onAreaChange((oldValue: Area, newValue: Area) => {
+                const width: number = Number(newValue.width);
+                if (width > 0 && width !== this.weekStripWidth) {
+                  this.weekStripWidth = width;
+                  this.updateWeekHighlight(false);
+                }
+              })
             }
             .width('100%')
             .padding(AppTheme.SPACE_SM)
@@ -706,11 +862,12 @@ export struct CalendarPage {
       }
       .width('100%')
       .height('100%')
+      .align(Alignment.TopStart)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       .scrollBar(BarState.Off)
 
       HdsTabs({ controller: this.fabController }) {
-        TabContent().tabBar(this.fabContent())
+        TabContent().tabBar(this.fabButton())
       }
       .barWidth(56)
       .barHeight(56)

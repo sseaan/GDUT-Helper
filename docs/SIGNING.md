@@ -16,5 +16,7 @@
 
 - 仅修改 `keyAlias`、文件名或 `vendor` 不会改变证书身份；
 - 不要手工替换 `.p7b`，它与证书和华为开发者账号绑定；
-- 当前自动签名 Profile 未开通“代理提醒”权益，真机 ReminderAgent 返回 `1700002`，系统日历提醒仍可用；
-- 签名材料不要提交到仓库。
+- 当前自动签名 Profile 未开通“代理提醒”权益，真机 ReminderAgent 返回 `1700002`，系统日历提醒与即时本地通知仍可用；
+- 签名材料不要提交到仓库；
+- 本项目 1.1.0 的侧载分发以 GitHub Actions 构建的 unsigned HAP 为主，不依赖 CI 签名。unsigned 构建会移除 `signingConfig`，产物为 `entry-default-unsigned.hap`；
+- 本地 release 构建仍使用 DevEco 自动签名配置，仅用于模拟器/真机调试。

@@ -130,7 +130,10 @@ function migrateBundle(raw: BackupBundle): BackupBundle {
       themeMode: 'system',
       immersiveEnabled: true,
       handednessEnabled: true,
-      showCourseContent: false
+      showCourseContent: false,
+      localNotificationsEnabled: false,
+      themeColorId: 'harmony',
+      materialLevel: 10
     };
   }
   if (typeof bundle.settings.themeMode !== 'string') {
@@ -144,6 +147,25 @@ function migrateBundle(raw: BackupBundle): BackupBundle {
   }
   if (typeof bundle.settings.showCourseContent !== 'boolean') {
     bundle.settings.showCourseContent = false;
+  }
+  if (bundle.settings.campusNewsEnabled !== undefined &&
+    typeof bundle.settings.campusNewsEnabled !== 'boolean') {
+    bundle.settings.campusNewsEnabled = false;
+  }
+  if (bundle.settings.campusDataEnabled !== undefined &&
+    typeof bundle.settings.campusDataEnabled !== 'boolean') {
+    bundle.settings.campusDataEnabled = false;
+  }
+  if (bundle.settings.localNotificationsEnabled !== undefined &&
+    typeof bundle.settings.localNotificationsEnabled !== 'boolean') {
+    bundle.settings.localNotificationsEnabled = false;
+  }
+  if (typeof bundle.settings.themeColorId !== 'string') {
+    bundle.settings.themeColorId = 'harmony';
+  }
+  if (bundle.settings.materialLevel !== 0 && bundle.settings.materialLevel !== 1 &&
+    bundle.settings.materialLevel !== 2) {
+    bundle.settings.materialLevel = 10;
   }
   if (typeof bundle.checksum !== 'string') {
     bundle.checksum = '';
@@ -181,13 +203,23 @@ export class BackupService {
     const modeValue = await settingsStore.get('themeMode', ThemeMode.SYSTEM);
     const immersive = await settingsStore.get(IMMERSIVE_KEY, true);
     const handedness = await settingsStore.get(HANDEDNESS_KEY, true);
+    const themeColorId = await settingsStore.get('themeColorId', 'harmony');
+    const materialLevel = await settingsStore.get('materialLevel', 10);
     const displayStore = await preferences.getPreferences(context, 'display_settings');
     const showContent = await displayStore.get('showCourseContent', false);
+    const campusNews = await displayStore.get('campusNewsEnabled', true);
+    const campusData = await displayStore.get('campusDataEnabled', true);
+    const localNotifications = await displayStore.get('localNotificationsEnabled', false);
     const settings: BackupSettings = {
       themeMode: typeof modeValue === 'string' ? modeValue : ThemeMode.SYSTEM,
       immersiveEnabled: immersive === true,
       handednessEnabled: handedness === true,
-      showCourseContent: showContent === true
+      showCourseContent: showContent === true,
+      campusNewsEnabled: campusNews !== false,
+      campusDataEnabled: campusData !== false,
+      localNotificationsEnabled: localNotifications === true,
+      themeColorId: typeof themeColorId === 'string' ? themeColorId : 'harmony',
+      materialLevel: materialLevel === 0 || materialLevel === 1 || materialLevel === 2 ? materialLevel : 10
     };
     return {
       format: FORMAT,
@@ -332,6 +364,11 @@ export class BackupService {
     AppearanceSettings.apply(context, bundle.settings.themeMode === ThemeMode.LIGHT ? ThemeMode.LIGHT :
       (bundle.settings.themeMode === ThemeMode.DARK ? ThemeMode.DARK : ThemeMode.SYSTEM));
     await DisplaySettings.set(context, bundle.settings.showCourseContent);
+    await DisplaySettings.setCampusNewsEnabled(context, bundle.settings.campusNewsEnabled !== false);
+    await DisplaySettings.setCampusDataEnabled(context, bundle.settings.campusDataEnabled !== false);
+    await DisplaySettings.setLocalNotificationsEnabled(context, bundle.settings.localNotificationsEnabled === true);
+    await AppearanceSettings.setThemeColor(context, bundle.settings.themeColorId ?? 'harmony');
+    await AppearanceSettings.setMaterialLevel(context, bundle.settings.materialLevel ?? 10);
     try {
       await SystemCalendarSyncService.removeSynced(context);
       await ReminderService.clearScheduled(context);

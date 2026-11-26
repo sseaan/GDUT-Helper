@@ -17,6 +17,9 @@ interface DisplayItem {
 
 @Component
 export struct PhysicalTestPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   onOpenLogin: () => void = () => {};
   @StorageLink(TZCS_SESSION_REVISION_KEY) @Watch('onSessionChange') sessionRevision: number = 0;
   @State reports: TzcsReport[] = [];
@@ -304,7 +307,7 @@ export struct PhysicalTestPage {
                   .height(42)
                   .borderRadius(21)
                   .fontSize(AppTheme.FONT_CAPTION)
-                  .fontColor(AppTheme.BRAND)
+                  .fontColor(this.brandTextColor)
                   .backgroundColor(Color.White)
                   .onClick(() => this.refresh())
               }
@@ -321,7 +324,7 @@ export struct PhysicalTestPage {
             }
             .width('100%')
             .padding(18)
-            .backgroundColor(AppTheme.BRAND)
+            .backgroundColor(this.brandColor)
             .borderRadius(24)
 
             if (this.reports.length > 1) {
@@ -330,7 +333,7 @@ export struct PhysicalTestPage {
                   ForEach(this.reports, (report: TzcsReport) => {
                     Text(`${report.year} 学年`)
                       .fontSize(AppTheme.FONT_CAPTION)
-                      .fontColor(this.selectedYear === report.year ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+                      .fontColor(this.selectedYear === report.year ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
                       .padding({ left: 14, right: 14, top: 7, bottom: 7 })
                       .backgroundColor(this.selectedYear === report.year ? '#2F8F67' : AppTheme.CARD_BG)
                       .borderRadius(16)

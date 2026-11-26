@@ -1,0 +1,89 @@
+name: Build unsigned HAP
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned HAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up HarmonyOS SDK
+        uses: ErBWs/setup-ohos@v2
+        with:
+          version: 26.0.0.821
+          cache: true
+
+      - name: Verify toolchain
+        run: |
+          hvigorw -v
+          ohpm -v
+
+      - name: Strip local signing config
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('build-profile.json5')
+          data = json.loads(path.read_text())
+          for product in data.get('app', {}).get('products', []):
+              product.pop('signingConfig', None)
+          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+          PY
+
+      - name: Build unsigned HAP
+        run: |
+          hvigorw assembleHap --mode module \
+            -p product=default \
+            -p buildMode=release \
+            --no-daemon
+
+      - name: Collect HAP
+        run: |
+          mkdir -p build/unsigned
+          HAP="$(find entry/build -type f -name '*unsigned*.hap' | head -n 1)"
+          if [ -z "$HAP" ]; then
+            HAP="$(find entry/build -type f -name '*.hap' | head -n 1)"
+          fi
+          if [ -z "$HAP" ]; then
+            echo "No HAP produced"
+            find entry/build -type f -name '*.hap' -print || true
+            exit 1
+          fi
+          cp "$HAP" "build/unsigned/gdut-helper-unsigned.hap"
+          ls -lh build/unsigned
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdut-helper-unsigned-hap
+          path: build/unsigned/gdut-helper-unsigned.hap
+          if-no-files-found: error
+          retention-days: 30

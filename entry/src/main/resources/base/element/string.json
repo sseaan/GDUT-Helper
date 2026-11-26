@@ -370,7 +370,7 @@
     },
     {
       "name": "semester_current_hint",
-      "value": "M1 先支持每台设备一个当前学期；更换学期可后续扩展。"
+      "value": "登录教务后可直接选择当前学期或前后一学期；本地已有多个学期时，可在这里切换当前学期。"
     },
     {
       "name": "semester_back",
@@ -406,11 +406,11 @@
     },
     {
       "name": "today_no_semester_desc",
-      "value": "先创建当前学期和开学日期，再手动添加课程。"
+      "value": "登录教务系统后选择当前学期或前后一学期，自动抓取课表。"
     },
     {
       "name": "today_create_semester",
-      "value": "创建学期"
+      "value": "登录教务抓取"
     },
     {
       "name": "timetable_no_semester_title",
@@ -418,7 +418,7 @@
     },
     {
       "name": "timetable_no_semester_desc",
-      "value": "先创建学期，再添加或导入课程。"
+      "value": "登录教务系统后选择学期，自动导入课表和考试。"
     },
     {
       "name": "cancel",
@@ -494,11 +494,11 @@
     },
     {
       "name": "sync_term_code_tip",
-      "value": "如 202601；同步时自动校准开学日期"
+      "value": "在下方选择当前学期或前后一学期，同步时自动校准开学日期"
     },
     {
       "name": "sync_full",
-      "value": "全量同步"
+      "value": "抓取所选学期"
     },
     {
       "name": "sync_next_week",

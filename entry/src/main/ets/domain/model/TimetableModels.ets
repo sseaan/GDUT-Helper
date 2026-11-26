@@ -126,3 +126,18 @@ export function weekdayLabel(weekday: number): string {
   const labels: string[] = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
   return weekday >= 1 && weekday <= 7 ? labels[weekday] : '';
 }
+
+/**
+ * Display-only course name cleanup. Jxfw keeps the class sequence in the
+ * official name (高等数学（1）), but the timetable reads better without it.
+ * Stored names stay untouched so week matching and deterministic IDs are stable.
+ */
+export function displayCourseName(name: string): string {
+  let result: string = name.trim();
+  let previous: string = '';
+  while (previous !== result) {
+    previous = result;
+    result = result.replace(/\s*[（(]\s*\d{1,2}\s*[)）]\s*$/, '').trim();
+  }
+  return result.length > 0 ? result : name.trim();
+}

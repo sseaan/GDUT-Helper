@@ -1,10 +1,12 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
+import { THEME_COLOR_KEY, ThemeColor } from '../common/ThemeColor';
 
 const STORE_NAME: string = 'appearance_settings';
 const MODE_KEY: string = 'themeMode';
 export const IMMERSIVE_KEY: string = 'immersiveEnabled';
 export const HANDEDNESS_KEY: string = 'handednessEnabled';
+export const MATERIAL_LEVEL_KEY: string = 'materialLevel';
 
 export enum ThemeMode {
   SYSTEM = 'system',
@@ -19,8 +21,13 @@ export class AppearanceSettings {
       const value = await store.get(MODE_KEY, ThemeMode.SYSTEM);
       const immersive = await store.get(IMMERSIVE_KEY, true);
       const handedness = await store.get(HANDEDNESS_KEY, true);
+      const themeColor = await store.get(THEME_COLOR_KEY, ThemeColor.DEFAULT);
+      const materialLevel = await store.get(MATERIAL_LEVEL_KEY, 10);
+      const level: number = typeof materialLevel === 'number' ? materialLevel : 10;
       AppStorage.setOrCreate(IMMERSIVE_KEY, immersive === true);
       AppStorage.setOrCreate(HANDEDNESS_KEY, handedness === true);
+      AppStorage.setOrCreate(MATERIAL_LEVEL_KEY, level === 0 || level === 1 || level === 2 ? level : 10);
+      AppStorage.setOrCreate(THEME_COLOR_KEY, ThemeColor.normalize(themeColor as string));
       if (value === ThemeMode.LIGHT) {
         return ThemeMode.LIGHT;
       }
@@ -30,6 +37,8 @@ export class AppearanceSettings {
     } catch (error) {
       AppStorage.setOrCreate(IMMERSIVE_KEY, true);
       AppStorage.setOrCreate(HANDEDNESS_KEY, true);
+      AppStorage.setOrCreate(MATERIAL_LEVEL_KEY, 10);
+      AppStorage.setOrCreate(THEME_COLOR_KEY, ThemeColor.DEFAULT);
     }
     return ThemeMode.SYSTEM;
   }
@@ -44,11 +53,48 @@ export class AppearanceSettings {
     return value === undefined ? true : value;
   }
 
+  static themeColorId(): string {
+    return ThemeColor.normalize(AppStorage.get<string>(THEME_COLOR_KEY));
+  }
+
+  static materialLevel(): number {
+    const value: number | undefined = AppStorage.get<number>(MATERIAL_LEVEL_KEY);
+    return value === 0 || value === 1 || value === 2 ? value : 10;
+  }
+
+  static themeColor(): string {
+    return ThemeColor.current();
+  }
+
   static async setImmersive(context: common.UIAbilityContext, enabled: boolean): Promise<void> {
     AppStorage.setOrCreate(IMMERSIVE_KEY, enabled);
     try {
       const store = await preferences.getPreferences(context, STORE_NAME);
       await store.put(IMMERSIVE_KEY, enabled);
+      await store.flush();
+    } catch (error) {
+      // The in-memory selection still applies for this session.
+    }
+  }
+
+  static async setMaterialLevel(context: common.UIAbilityContext, level: number): Promise<void> {
+    const normalized: number = level === 0 || level === 1 || level === 2 ? level : 10;
+    AppStorage.setOrCreate(MATERIAL_LEVEL_KEY, normalized);
+    try {
+      const store = await preferences.getPreferences(context, STORE_NAME);
+      await store.put(MATERIAL_LEVEL_KEY, normalized);
+      await store.flush();
+    } catch (error) {
+      // The in-memory selection still applies for this session.
+    }
+  }
+
+  static async setThemeColor(context: common.UIAbilityContext, id: string): Promise<void> {
+    const normalized: string = ThemeColor.normalize(id);
+    AppStorage.setOrCreate(THEME_COLOR_KEY, normalized);
+    try {
+      const store = await preferences.getPreferences(context, STORE_NAME);
+      await store.put(THEME_COLOR_KEY, normalized);
       await store.flush();
     } catch (error) {
       // The in-memory selection still applies for this session.

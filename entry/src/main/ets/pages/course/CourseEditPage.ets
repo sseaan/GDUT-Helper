@@ -10,6 +10,9 @@ import { TimetableState } from '../../state/TimetableState';
 
 @Component
 export struct CourseEditPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   param: CourseEditParam = { semesterId: '', courseId: '' };
   onDone: () => void = () => {};
 
@@ -270,8 +273,8 @@ export struct CourseEditPage {
                   .textAlign(TextAlign.Center)
                   .layoutWeight(1)
                   .height(36)
-                  .fontColor(this.weekday === day ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
-                  .backgroundColor(this.weekday === day ? AppTheme.BRAND : AppTheme.BG)
+                  .fontColor(this.weekday === day ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
+                  .backgroundColor(this.weekday === day ? this.brandColor : AppTheme.BG)
                   .borderRadius(10)
                   .onClick(() => {
                     this.weekday = day;
@@ -316,8 +319,8 @@ export struct CourseEditPage {
                   .height(30)
                   .textAlign(TextAlign.Center)
                   .margin(2)
-                  .fontColor(this.selectedWeeks.indexOf(week) >= 0 ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
-                  .backgroundColor(this.selectedWeeks.indexOf(week) >= 0 ? AppTheme.BRAND : AppTheme.BG)
+                  .fontColor(this.selectedWeeks.indexOf(week) >= 0 ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
+                  .backgroundColor(this.selectedWeeks.indexOf(week) >= 0 ? this.brandColor : AppTheme.BG)
                   .borderRadius(8)
                   .onClick(() => this.toggleWeek(week))
               }, (week: number) => `week-${week}`)

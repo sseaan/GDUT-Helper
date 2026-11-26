@@ -6,6 +6,7 @@ import { TimetableSyncService } from '../services/sync/TimetableSyncService';
 import { SystemCalendarSyncService } from '../services/calendar/SystemCalendarSyncService';
 import { WidgetSnapshotService } from '../services/widget/WidgetSnapshotService';
 import { TimetableState } from '../state/TimetableState';
+import { LocalNotificationService } from '../services/notification/LocalNotificationService';
 
 export default class AutoSyncAbility extends WorkSchedulerExtensionAbility {
   onWorkStart(work: workScheduler.WorkInfo): void {
@@ -19,10 +20,13 @@ export default class AutoSyncAbility extends WorkSchedulerExtensionAbility {
 
   private async run(work: workScheduler.WorkInfo): Promise<void> {
     try {
+      await LocalNotificationService.load(this.context);
       const semester: Semester | null = await TimetableRepository.getCurrentSemester(this.context);
       if (semester !== null) {
         await TimetableSyncService.fullSync(this.context, semester);
         TimetableState.bump();
+        await LocalNotificationService.notify(this.context, '课程表已同步',
+          `${semester.name} 的后台同步已完成`, 'auto-sync');
       }
       await SystemCalendarSyncService.refresh(this.context);
       await WidgetSnapshotService.write(this.context);

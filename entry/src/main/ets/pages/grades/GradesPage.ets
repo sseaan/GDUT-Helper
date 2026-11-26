@@ -9,6 +9,9 @@ import { JxfwError, JxfwErrorKind } from '../../services/jxfw/JxfwModels';
 
 @Component
 struct GradeStat {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop label: ResourceStr = '';
   @Prop value: string = '';
 
@@ -17,7 +20,7 @@ struct GradeStat {
       Text(this.value)
         .fontSize(24)
         .fontWeight(FontWeight.Bold)
-        .fontColor(AppTheme.BRAND)
+        .fontColor(this.brandTextColor)
       Text(this.label)
         .fontSize(AppTheme.FONT_TINY)
         .fontColor(AppTheme.TEXT_SECONDARY)
@@ -29,6 +32,9 @@ struct GradeStat {
 
 @Component
 export struct GradesPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   onOpenSync: () => void = () => {};
   @State grades: JxfwGrade[] = [];
   @State summary: GradeSummary = {
@@ -212,7 +218,7 @@ export struct GradesPage {
               if (this.error.includes('登录')) {
                 Text('去登录')
                   .fontSize(AppTheme.FONT_CAPTION)
-                  .fontColor(AppTheme.BRAND)
+                  .fontColor(this.brandTextColor)
                   .onClick(() => this.onOpenSync())
               }
             }
@@ -241,7 +247,7 @@ export struct GradesPage {
             Blank()
             Text(this.refreshing ? '更新中…' : '刷新')
               .fontSize(AppTheme.FONT_CAPTION)
-              .fontColor(AppTheme.BRAND)
+              .fontColor(this.brandTextColor)
               .onClick(() => this.refresh(true))
           }
           .width('100%')
@@ -250,17 +256,17 @@ export struct GradesPage {
             Row({ space: 8 }) {
               Text('全部学期')
                 .fontSize(AppTheme.FONT_CAPTION)
-                .fontColor(this.selectedTerm.length === 0 ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+                .fontColor(this.selectedTerm.length === 0 ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
                 .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                .backgroundColor(this.selectedTerm.length === 0 ? AppTheme.BRAND : AppTheme.CARD_BG)
+                .backgroundColor(this.selectedTerm.length === 0 ? this.brandColor : AppTheme.CARD_BG)
                 .borderRadius(16)
                 .onClick(() => { this.selectedTerm = ''; })
               ForEach(this.terms, (term: string) => {
                 Text(JxfwGradeParser.termLabel(term))
                   .fontSize(AppTheme.FONT_CAPTION)
-                  .fontColor(this.selectedTerm === term ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+                  .fontColor(this.selectedTerm === term ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
                   .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                  .backgroundColor(this.selectedTerm === term ? AppTheme.BRAND : AppTheme.CARD_BG)
+                  .backgroundColor(this.selectedTerm === term ? this.brandColor : AppTheme.CARD_BG)
                   .borderRadius(16)
                   .onClick(() => { this.selectedTerm = term; })
               }, (term: string) => term)
@@ -276,17 +282,17 @@ export struct GradesPage {
               Row({ space: 8 }) {
                 Text('全部类别')
                   .fontSize(AppTheme.FONT_TINY)
-                  .fontColor(this.selectedCategory.length === 0 ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+                  .fontColor(this.selectedCategory.length === 0 ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
                   .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                  .backgroundColor(this.selectedCategory.length === 0 ? AppTheme.BRAND : AppTheme.CARD_BG)
+                  .backgroundColor(this.selectedCategory.length === 0 ? this.brandColor : AppTheme.CARD_BG)
                   .borderRadius(14)
                   .onClick(() => { this.selectedCategory = ''; })
                 ForEach(this.categories, (category: string) => {
                   Text(this.categoryLabel(category))
                     .fontSize(AppTheme.FONT_TINY)
-                    .fontColor(this.selectedCategory === category ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+                    .fontColor(this.selectedCategory === category ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                    .backgroundColor(this.selectedCategory === category ? AppTheme.BRAND : AppTheme.CARD_BG)
+                    .backgroundColor(this.selectedCategory === category ? this.brandColor : AppTheme.CARD_BG)
                     .borderRadius(14)
                     .onClick(() => { this.selectedCategory = category; })
                 }, (category: string) => category)

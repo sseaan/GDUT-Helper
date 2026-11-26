@@ -38,26 +38,25 @@ export class TimetableSyncService {
     const client: JxfwClient = new JxfwClient();
     const lessons: JxfwLesson[] = await client.fetchAllLessons(term);
     if (lessons.length === 0) {
-      throw new JxfwError('教务系统未返回课表，请确认学期代码或登录状态', JxfwErrorKind.PROTOCOL);
+      throw new JxfwError('教务系统未返回该学期课表，可能尚未发布或登录已失效', JxfwErrorKind.PROTOCOL);
     }
 
     let startDate: string = '';
     let weekData: JxfwWeek | null = null;
+    // Always fetch week 1 so a freshly selected term gets its real start date.
+    try {
+      weekData = await client.fetchWeekData(term, 1);
+      startDate = JxfwParser.firstMonday(weekData);
+    } catch (error) {
+      weekData = null;
+    }
     const currentWeek: number = weekOf(semester.startDate, new Date());
     const contentWeek: number = currentWeek >= 1 && currentWeek <= semester.totalWeeks ? currentWeek : 1;
-    try {
-      weekData = await client.fetchWeekData(term, contentWeek);
-      if (contentWeek === 1) {
-        startDate = JxfwParser.firstMonday(weekData);
-      }
-    } catch (error) {
-      if (contentWeek !== 1) {
-        try {
-          weekData = await client.fetchWeekData(term, 1);
-          startDate = JxfwParser.firstMonday(weekData);
-        } catch (fallbackError) {
-          weekData = null;
-        }
+    if (contentWeek !== 1) {
+      try {
+        weekData = await client.fetchWeekData(term, contentWeek);
+      } catch (error) {
+        // Week 1 content is a safe fallback when the current week is unavailable.
       }
     }
 
@@ -75,6 +74,14 @@ export class TimetableSyncService {
       TimetableSyncService.mergeWeekContent(remoteCourses, weekData);
     }
     TimetableSyncService.assignColors(remoteCourses);
+    let totalWeeks: number = 0;
+    for (const course of remoteCourses) {
+      for (const week of course.weeks) {
+        if (week > totalWeeks && week <= 30) {
+          totalWeeks = week;
+        }
+      }
+    }
 
     const existing: Course[] = (await TimetableRepository.listCourses(context, semester.id))
       .filter((course: Course) => course.source === 'IMPORT');
@@ -146,6 +153,7 @@ export class TimetableSyncService {
       examsLoaded: examsLoaded,
       hasRemoteCourses: remoteCourses.length > 0,
       startDate: startDate,
+      totalWeeks: totalWeeks,
       warnings: warnings
     };
   }
@@ -173,10 +181,11 @@ export class TimetableSyncService {
       }
       await TimetableRepository.deleteExamEventsExcept(context, semester.id, externalIds);
     }
-    if (plan.hasRemoteCourses) {
-    }
     if (plan.startDate.length > 0 && plan.startDate !== semester.startDate) {
       await TimetableRepository.updateSemesterStartDate(context, semester.id, plan.startDate);
+    }
+    if (plan.totalWeeks > semester.totalWeeks) {
+      await TimetableRepository.updateSemesterTotalWeeks(context, semester.id, plan.totalWeeks);
     }
     return {
       added: plan.add.length,

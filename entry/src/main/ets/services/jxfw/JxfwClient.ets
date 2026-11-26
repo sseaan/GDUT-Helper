@@ -15,7 +15,8 @@ export class JxfwClient {
     body: string = '',
     referer: string = '',
     includeSession: boolean = true,
-    allowRetry: boolean = true
+    allowRetry: boolean = true,
+    validateSession: boolean = true
   ): Promise<string> {
     const client = http.createHttp();
     try {
@@ -46,14 +47,14 @@ export class JxfwClient {
       if (response.responseCode < 200 || response.responseCode >= 400) {
         throw new JxfwError(`HTTP ${response.responseCode}`, JxfwErrorKind.NETWORK);
       }
-      if (includeSession) {
+      if (includeSession && validateSession) {
         try {
           this.ensureSession(text);
         } catch (error) {
           if (allowRetry && error instanceof JxfwError &&
             error.kind === JxfwErrorKind.SESSION &&
             await CasLoginService.autoLogin()) {
-            return this.request(method, url, body, referer, includeSession, false);
+            return this.request(method, url, body, referer, includeSession, false, validateSession);
           }
           if (error instanceof JxfwError) {
             throw error;
@@ -94,6 +95,35 @@ export class JxfwClient {
     const url: string = `${JXFW_BASE}/xsgrkbcx!getKbRq.action?xnxqdm=${encodeURIComponent(term)}&zc=${week}`;
     return this.request(http.RequestMethod.GET, url,
       '', `${JXFW_BASE}/xsgrkbcx!xskbList.action`);
+  }
+
+  /** Loads an authenticated jxfw HTML page without treating normal pages as session loss. */
+  private async fetchPage(path: string): Promise<string> {
+    return this.request(http.RequestMethod.GET, `${JXFW_BASE}${path}`, '',
+      `${JXFW_BASE}/default!index.action`, true, true, false);
+  }
+
+  /**
+   * The timetable/profile pages carry the student's display name. Try the
+   * student-card page first, then the login welcome page and timetable list page.
+   */
+  async fetchStudentName(): Promise<string> {
+    const paths: string[] = [
+      '/xjkpxx!xjkpxx.action',
+      '/login!welcome.action',
+      '/xsgrkbcx!getXsgrbkList.action'
+    ];
+    for (const path of paths) {
+      try {
+        const name: string = JxfwParser.studentName(await this.fetchPage(path));
+        if (name.length > 0) {
+          return name;
+        }
+      } catch (error) {
+        // Try the next page; name discovery must never block login or sync.
+      }
+    }
+    return '';
   }
 
   async fetchExams(term: string): Promise<string> {

@@ -10,6 +10,11 @@ export interface BackupSettings {
   immersiveEnabled: boolean;
   handednessEnabled: boolean;
   showCourseContent: boolean;
+  campusNewsEnabled?: boolean;
+  campusDataEnabled?: boolean;
+  localNotificationsEnabled?: boolean;
+  themeColorId?: string;
+  materialLevel?: number;
 }
 
 export interface BackupBundle {

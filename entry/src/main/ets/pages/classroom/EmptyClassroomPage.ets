@@ -40,6 +40,9 @@ const WEEKDAYS: string[] = ['一', '二', '三', '四', '五', '六', '日'];
 
 @Component
 export struct EmptyClassroomPage {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   onOpenSync: () => void = () => {};
   private client: JwcwxClient | null = null;
   @State buildings: ClassroomBuilding[] = [];
@@ -63,6 +66,9 @@ export struct EmptyClassroomPage {
   @State selectedRoom: ClassroomRoom | null = null;
   @State roomWeek: RoomDaySchedule[] = [];
   @State roomLoading: boolean = false;
+  @State dayStripWidth: number = 0;
+  @State dayHighlightX: number = 0;
+  @State dayHighlightWidth: number = 0;
 
   aboutToAppear(): void {
     this.init();
@@ -118,6 +124,7 @@ export struct EmptyClassroomPage {
     this.days = result;
     const todayInWeek: DayOption | undefined = result.find((item: DayOption) => item.today);
     this.selectedDate = todayInWeek === undefined ? result[0].iso : todayInWeek.iso;
+    this.updateDayHighlight(false);
   }
 
   private async shiftWeek(delta: number): Promise<void> {
@@ -666,33 +673,54 @@ export struct EmptyClassroomPage {
     }
   }
 
+  private selectedDayIndex(): number {
+    const index: number = this.days.findIndex((day: DayOption) => day.iso === this.selectedDate);
+    return index < 0 ? 0 : index;
+  }
+
+  private updateDayHighlight(animated: boolean): void {
+    if (this.dayStripWidth <= 0 || this.days.length === 0) {
+      return;
+    }
+    const columnWidth: number = this.dayStripWidth / this.days.length;
+    const targetX: number = this.selectedDayIndex() * columnWidth;
+    if (animated) {
+      this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+        this.dayHighlightX = targetX;
+        this.dayHighlightWidth = columnWidth;
+      });
+    } else {
+      this.dayHighlightX = targetX;
+      this.dayHighlightWidth = columnWidth;
+    }
+  }
+
   @Builder
   dayTab(day: DayOption) {
     Column({ space: 3 }) {
       Text(`周${day.weekday}`)
         .fontSize(AppTheme.FONT_TINY)
-        .fontColor(day.iso === this.selectedDate ? AppTheme.ON_BRAND : AppTheme.TEXT_SECONDARY)
+        .fontColor(day.iso === this.selectedDate ? this.onBrandColor : AppTheme.TEXT_SECONDARY)
       Text(day.label)
         .fontSize(AppTheme.FONT_CAPTION)
         .fontWeight(day.iso === this.selectedDate ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(day.iso === this.selectedDate ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
+        .fontColor(day.iso === this.selectedDate ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
       Column()
         .width(4)
         .height(4)
         .borderRadius(2)
-        .backgroundColor(day.iso === this.selectedDate ? AppTheme.ON_BRAND : Color.Transparent)
+        .backgroundColor(day.iso === this.selectedDate ? this.onBrandColor : Color.Transparent)
     }
     .layoutWeight(1)
     .height(58)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor(day.iso === this.selectedDate ? AppTheme.BRAND : Color.Transparent)
-    .borderRadius(14)
-    .onClick(async () => {
+    .onClick(() => {
       if (day.iso === this.selectedDate) {
         return;
       }
       this.selectedDate = day.iso;
-      await this.loadOccupancy();
+      this.updateDayHighlight(true);
+      this.loadOccupancy();
     })
   }
 
@@ -769,7 +797,7 @@ export struct EmptyClassroomPage {
       Text(building.name)
         .fontSize(AppTheme.FONT_CAPTION)
         .fontWeight(building.code === this.selectedBuildingCode ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(building.code === this.selectedBuildingCode ? AppTheme.BRAND : AppTheme.TEXT_PRIMARY)
+        .fontColor(building.code === this.selectedBuildingCode ? this.brandTextColor : AppTheme.TEXT_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(building.campusName)
@@ -805,7 +833,7 @@ export struct EmptyClassroomPage {
         Blank()
         Text('关闭')
           .fontSize(AppTheme.FONT_CAPTION)
-          .fontColor(AppTheme.BRAND)
+          .fontColor(this.brandTextColor)
           .onClick(() => { this.showPicker = false; })
       }
       .width('100%')
@@ -830,18 +858,18 @@ export struct EmptyClassroomPage {
       Flex({ wrap: FlexWrap.Wrap }) {
         Text('全部校区')
           .fontSize(AppTheme.FONT_CAPTION)
-          .fontColor(this.selectedCampusCode.length === 0 ? AppTheme.ON_BRAND : AppTheme.TEXT_SECONDARY)
+          .fontColor(this.selectedCampusCode.length === 0 ? this.onBrandColor : AppTheme.TEXT_SECONDARY)
           .padding({ left: 13, right: 13, top: 7, bottom: 7 })
-          .backgroundColor(this.selectedCampusCode.length === 0 ? AppTheme.BRAND : AppTheme.CARD_BG)
+          .backgroundColor(this.selectedCampusCode.length === 0 ? this.brandColor : AppTheme.CARD_BG)
           .borderRadius(16)
           .margin({ right: 8, bottom: 8 })
           .onClick(() => { this.selectedCampusCode = ''; })
         ForEach(this.campuses, (campus: CampusOption) => {
           Text(campus.name)
             .fontSize(AppTheme.FONT_CAPTION)
-            .fontColor(this.selectedCampusCode === campus.code ? AppTheme.ON_BRAND : AppTheme.TEXT_SECONDARY)
+            .fontColor(this.selectedCampusCode === campus.code ? this.onBrandColor : AppTheme.TEXT_SECONDARY)
             .padding({ left: 13, right: 13, top: 7, bottom: 7 })
-            .backgroundColor(this.selectedCampusCode === campus.code ? AppTheme.BRAND : AppTheme.CARD_BG)
+            .backgroundColor(this.selectedCampusCode === campus.code ? this.brandColor : AppTheme.CARD_BG)
             .borderRadius(16)
             .margin({ right: 8, bottom: 8 })
             .onClick(() => { this.selectedCampusCode = campus.code; })
@@ -875,7 +903,7 @@ export struct EmptyClassroomPage {
             Row({ space: 7 }) {
               SymbolGlyph($r('sys.symbol.square_fill_grid_2x2'))
                 .fontSize(17)
-                .fontColor([AppTheme.BRAND])
+                .fontColor([this.brandTextColor])
               Text(this.buildingLabel())
                 .fontSize(AppTheme.FONT_CAPTION)
                 .fontColor(this.selectedBuildingCode.length > 0 ? AppTheme.TEXT_PRIMARY : AppTheme.TEXT_SECONDARY)
@@ -928,10 +956,33 @@ export struct EmptyClassroomPage {
           }
           .width('100%')
 
-          Row() {
-            ForEach(this.days, (day: DayOption) => {
-              this.dayTab(day)
-            }, (day: DayOption) => day.iso)
+          Column() {
+            Stack({ alignContent: Alignment.TopStart }) {
+              if (this.dayHighlightWidth > 0) {
+                Column()
+                  .width(this.dayHighlightWidth)
+                  .height(58)
+                  .borderRadius(14)
+                  .backgroundColor(this.brandColor)
+                  .position({ x: this.dayHighlightX, y: 0 })
+              }
+              Row() {
+                ForEach(this.days, (day: DayOption) => {
+                  this.dayTab(day)
+                }, (day: DayOption) => day.iso)
+              }
+              .width('100%')
+              .height(58)
+            }
+            .width('100%')
+            .height(58)
+            .onAreaChange((oldValue: Area, newValue: Area) => {
+              const width: number = Number(newValue.width);
+              if (width > 0 && width !== this.dayStripWidth) {
+                this.dayStripWidth = width;
+                this.updateDayHighlight(false);
+              }
+            })
           }
           .width('100%')
           .padding(4)
@@ -944,9 +995,9 @@ export struct EmptyClassroomPage {
                 ForEach(this.filters(), (filter: string) => {
                   Text(this.filterLabel(filter))
                     .fontSize(AppTheme.FONT_CAPTION)
-                    .fontColor(this.selectedFilter === filter ? AppTheme.ON_BRAND : AppTheme.TEXT_SECONDARY)
+                    .fontColor(this.selectedFilter === filter ? this.onBrandColor : AppTheme.TEXT_SECONDARY)
                     .padding({ left: 13, right: 13, top: 7, bottom: 7 })
-                    .backgroundColor(this.selectedFilter === filter ? AppTheme.BRAND : AppTheme.CARD_BG)
+                    .backgroundColor(this.selectedFilter === filter ? this.brandColor : AppTheme.CARD_BG)
                     .borderRadius(16)
                     .onClick(() => { this.selectedFilter = filter; })
                 }, (filter: string) => filter)
@@ -1027,10 +1078,10 @@ export struct EmptyClassroomPage {
               Row({ space: 4 }) {
                 SymbolGlyph($r('sys.symbol.arrow_clockwise'))
                   .fontSize(13)
-                  .fontColor([AppTheme.BRAND])
+                  .fontColor([this.brandTextColor])
                 Text(this.loading ? '查询中' : '刷新')
                   .fontSize(AppTheme.FONT_CAPTION)
-                  .fontColor(AppTheme.BRAND)
+                  .fontColor(this.brandTextColor)
               }
               .padding({ left: 8, right: 8, top: 5, bottom: 5 })
               .backgroundColor(AppTheme.CARD_BG)

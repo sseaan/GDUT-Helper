@@ -20,6 +20,8 @@ const PALETTE: PaletteColor[] = [
 
 export class CoursePalette {
   static readonly SIZE: number = PALETTE.length;
+  static readonly PAST_BACKGROUND: string = '#ECEFF1';
+  static readonly PAST_FOREGROUND: string = '#9AA1A8';
 
   static get(colorKey: number): PaletteColor {
     const index: number = ((colorKey % PALETTE.length) + PALETTE.length) % PALETTE.length;

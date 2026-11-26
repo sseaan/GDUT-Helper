@@ -120,6 +120,24 @@ export class TimetableRepository {
     }
   }
 
+  static async findSemesterByTermCode(context: common.Context, termCode: string): Promise<Semester | null> {
+    const code: string = termCode.trim();
+    if (code.length === 0) {
+      return null;
+    }
+    const store: relationalStore.RdbStore = await Database.get(context);
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('semesters');
+    predicates.equalTo('term_code', code);
+    predicates.orderByDesc('is_current');
+    predicates.orderByDesc('updated_at');
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      return result.goToFirstRow() ? semesterFromRow(result) : null;
+    } finally {
+      result.close();
+    }
+  }
+
   static async listSemesters(context: common.Context): Promise<Semester[]> {
     const store: relationalStore.RdbStore = await Database.get(context);
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('semesters');
@@ -251,6 +269,94 @@ export class TimetableRepository {
     predicates.equalTo('id', id);
     const values: relationalStore.ValuesBucket = { 'term_code': termCode, 'updated_at': Date.now() };
     await store.update(values, predicates);
+  }
+
+  static async updateSemesterTotalWeeks(
+    context: common.Context,
+    id: string,
+    totalWeeks: number
+  ): Promise<void> {
+    if (totalWeeks < 1 || totalWeeks > 30) {
+      return;
+    }
+    const store: relationalStore.RdbStore = await Database.get(context);
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('semesters');
+    predicates.equalTo('id', id);
+    const values: relationalStore.ValuesBucket = { 'total_weeks': totalWeeks, 'updated_at': Date.now() };
+    await store.update(values, predicates);
+  }
+
+  /**
+   * Finds or creates the local semester for a jxfw term code and makes it current.
+   * Used by the sync page so importing a term no longer requires creating a
+   * semester by hand. `id` is the preview semester id, reused for a new row.
+   */
+  static async ensureSemesterForTerm(
+    context: common.Context,
+    id: string,
+    name: string,
+    startDate: string,
+    totalWeeks: number,
+    termCode: string
+  ): Promise<Semester> {
+    const store: relationalStore.RdbStore = await Database.get(context);
+    const code: string = termCode.trim();
+    let existing: Semester | null = await TimetableRepository.findSemesterByTermCode(context, code);
+    if (existing === null && id.length > 0) {
+      existing = await TimetableRepository.getSemester(context, id);
+    }
+    const now: number = Date.now();
+    const actualId: string = existing !== null ? existing.id : id;
+    const resolvedName: string = name.trim().length > 0
+      ? name.trim() : (existing !== null ? existing.name : code);
+    const resolvedStart: string = startDate.trim().length > 0
+      ? startDate.trim() : (existing !== null ? existing.startDate : '');
+    let resolvedWeeks: number = totalWeeks;
+    if (resolvedWeeks < 1) {
+      resolvedWeeks = existing !== null && existing.totalWeeks > 0 ? existing.totalWeeks : 20;
+    }
+    resolvedWeeks = Math.min(30, resolvedWeeks);
+    const createdAt: number = existing !== null && existing.createdAt > 0 ? existing.createdAt : now;
+    await store.executeSql('UPDATE semesters SET is_current = 0');
+    const values: relationalStore.ValuesBucket = {
+      'id': actualId,
+      'name': resolvedName,
+      'start_date': resolvedStart,
+      'total_weeks': resolvedWeeks,
+      'term_code': code,
+      'is_current': 1,
+      'created_at': createdAt,
+      'updated_at': now
+    };
+    if (existing !== null) {
+      const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('semesters');
+      predicates.equalTo('id', actualId);
+      await store.update(values, predicates);
+    } else {
+      await store.insert('semesters', values);
+    }
+    const periods: Period[] = await TimetableRepository.listPeriods(context, actualId);
+    if (periods.length === 0) {
+      for (const period of defaultPeriods(actualId)) {
+        const periodValues: relationalStore.ValuesBucket = {
+          'semester_id': period.semesterId,
+          'period_index': period.index,
+          'start_time': period.startTime,
+          'end_time': period.endTime
+        };
+        await store.insert('periods', periodValues);
+      }
+    }
+    return {
+      id: actualId,
+      name: resolvedName,
+      startDate: resolvedStart,
+      totalWeeks: resolvedWeeks,
+      termCode: code,
+      isCurrent: true,
+      createdAt: createdAt,
+      updatedAt: now
+    };
   }
 
   static async createSemester(

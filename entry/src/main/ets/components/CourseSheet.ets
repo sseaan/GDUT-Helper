@@ -13,6 +13,9 @@ import { TimetableState } from '../state/TimetableState';
 
 @Component
 export struct CourseSheet {
+  @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
+  @Consume('onBrandColor') onBrandColor: string = '#FFFFFF';
+  @Consume('brandColor') brandColor: string = '#0A59F7';
   @Prop course: ExpandedCourse | null = null;
   @Prop week: number = 1;
   onEdit: () => void = () => {};
@@ -250,7 +253,7 @@ export struct CourseSheet {
           Column({ space: AppTheme.SPACE_SM }) {
             Text(this.course.exceptionType === ExceptionType.CANCEL ? '本周已停课' : '本周已调课')
               .fontSize(AppTheme.FONT_BODY)
-              .fontColor(AppTheme.BRAND)
+              .fontColor(this.brandTextColor)
               .width('100%')
             Button($r('app.string.course_restore_week'))
               .width('100%')
@@ -298,8 +301,8 @@ export struct CourseSheet {
                   .height(34)
                   .textAlign(TextAlign.Center)
                   .fontSize(AppTheme.FONT_CAPTION)
-                  .fontColor(this.newWeekday === day ? AppTheme.ON_BRAND : AppTheme.TEXT_PRIMARY)
-                  .backgroundColor(this.newWeekday === day ? AppTheme.BRAND : AppTheme.SHEET_CARD_BG)
+                  .fontColor(this.newWeekday === day ? this.onBrandColor : AppTheme.TEXT_PRIMARY)
+                  .backgroundColor(this.newWeekday === day ? this.brandColor : AppTheme.SHEET_CARD_BG)
                   .borderRadius(12)
                   .onClick(() => {
                     this.newWeekday = day;
