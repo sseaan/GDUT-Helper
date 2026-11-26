@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -46,7 +51,7 @@ jobs:
           hvigorw -v
           ohpm -v
 
-      - name: Strip local signing config
+      - name: Prepare CI build config
         run: |
           python3 - <<'PY'
           import json
@@ -56,6 +61,11 @@ jobs:
           for product in data.get('app', {}).get('products', []):
               product.pop('signingConfig', None)
           path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+
+          hvigor = Path('hvigor/hvigor-config.json5')
+          text = hvigor.read_text()
+          text = text.replace('"modelVersion": "26.0.1"', '"modelVersion": "26.0.0"')
+          hvigor.write_text(text)
           PY
 
       - name: Build unsigned HAP
