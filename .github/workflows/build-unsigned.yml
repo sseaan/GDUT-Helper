@@ -62,10 +62,11 @@ jobs:
               product.pop('signingConfig', None)
           path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
 
-          hvigor = Path('hvigor/hvigor-config.json5')
-          text = hvigor.read_text()
-          text = text.replace('"modelVersion": "26.0.1"', '"modelVersion": "26.0.0"')
-          hvigor.write_text(text)
+          for name in ['hvigor/hvigor-config.json5', 'oh-package.json5']:
+              file = Path(name)
+              text = file.read_text()
+              text = text.replace('"modelVersion": "26.0.1"', '"modelVersion": "26.0.0"')
+              file.write_text(text)
           PY
 
       - name: Build unsigned HAP
