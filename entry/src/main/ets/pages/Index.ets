@@ -4,11 +4,15 @@ import {
   HdsTabs,
   HdsTabsController
 } from '@kit.UIDesignKit';
+import { common } from '@kit.AbilityKit';
 import { MainTabIcon } from '../components/MainTabIcon';
 import { AppTheme } from '../common/Theme';
 import { ThemeColor } from '../common/ThemeColor';
 import { ImmersiveMaterial } from '../common/ImmersiveMaterial';
-import { immersiveTitleBar } from '../common/TitleBarOptions';
+import { immersiveTitleBar, titleBarAction } from '../common/TitleBarOptions';
+import { ScanService, ScanError } from '../services/scan/ScanService';
+import { ScanDispatcher } from '../services/scan/ScanDispatcher';
+import { ScanPayload } from '../services/scan/ScanRoute';
 import { TodayPage } from './today/TodayPage';
 import { TimetablePage } from './timetable/TimetablePage';
 import { CalendarPage } from './calendar/CalendarPage';
@@ -51,6 +55,9 @@ struct Index {
   @StorageLink('materialLevel') materialLevel: number = 10;
   @StorageLink('handednessEnabled') handednessEnabled: boolean = true;
   private navActions: AppNavActions = new AppNavActions();
+  private scanBusy: boolean = false;
+  /** 「我的」在底栏的索引，扫码按钮只挂在这个 tab 的标题栏上。 */
+  private static readonly PROFILE_TAB: number = 4;
 
   private tabTitles: ResourceStr[] = [
     $r('app.string.tab_today'),
@@ -68,7 +75,44 @@ struct Index {
   ];
 
   private rootTitleBar(): Record<string, Object> {
-    return immersiveTitleBar(this.tabTitles[this.currentTab]);
+    const actions: Record<string, Object>[] = [];
+    if (this.currentTab === Index.PROFILE_TAB) {
+      actions.push(titleBarAction($r('app.string.scan_button_label'),
+        $r('sys.symbol.barcode_viewfinder'), () => {
+          this.onScan();
+        }));
+    }
+    return immersiveTitleBar(this.tabTitles[this.currentTab], actions);
+  }
+
+  private toast(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (error) {
+      // Toast is optional.
+    }
+  }
+
+  /** 扫码 → 分类：URL 进浏览器，ISBN 进馆藏检索，其余文本交给弹窗。 */
+  private async onScan(): Promise<void> {
+    if (this.scanBusy) {
+      return;
+    }
+    this.scanBusy = true;
+    try {
+      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const payload: ScanPayload | null = await ScanService.scan(context);
+      if (payload === null) {
+        return;
+      }
+      await ScanDispatcher.dispatch(this.getUIContext(), payload, (isbn: string) => {
+        this.stack.pushPathByName('library-search', isbn);
+      });
+    } catch (error) {
+      this.toast(error instanceof ScanError ? error.message : '扫码失败，请重试');
+    } finally {
+      this.scanBusy = false;
+    }
   }
 
   onThemeColorChange(): void {

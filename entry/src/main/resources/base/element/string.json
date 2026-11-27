@@ -242,7 +242,7 @@
     },
     {
       "name": "campus_more_services_desc",
-      "value": "更多校园服务入口"
+      "value": "选课助手 · 校园数据"
     },
     {
       "name": "timetable_add",
@@ -571,6 +571,26 @@
     {
       "name": "timetable_card_desc",
       "value": "显示一周课程概览"
+    },
+    {
+      "name": "scan_button_label",
+      "value": "扫码"
+    },
+    {
+      "name": "scan_dialog_title",
+      "value": "扫描结果"
+    },
+    {
+      "name": "scan_copy",
+      "value": "复制"
+    },
+    {
+      "name": "scan_search_web",
+      "value": "在浏览器搜索"
+    },
+    {
+      "name": "scan_cancel",
+      "value": "取消"
     }
   ]
 }
