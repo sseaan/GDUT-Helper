@@ -14,10 +14,8 @@ function firstNumber(value: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+/** 金额统一成两位小数，单位统一由调用方加 `¥` 前缀，避免“¥12 / 12元”混用。 */
 function moneyText(value: number): string {
-  if (Math.abs(value - Math.round(value)) < 0.0001) {
-    return `${Math.round(value)}`;
-  }
   return value.toFixed(2);
 }
 
@@ -42,7 +40,7 @@ function libraryNumbers(card: PortalPersonalCard): string {
   const parts: string[] = card.subInfo.split('；');
   const due: number = firstNumber(parts.length > 0 ? parts[0] : '');
   const overdue: number = firstNumber(parts.length > 1 ? parts[1] : '');
-  return `即将到期 ${due} · 超期 ${overdue}`;
+  return `到期 ${due} · 超期 ${overdue}`;
 }
 
 export function libraryDisplay(card: PortalPersonalCard | null): PortalCardDisplay {
@@ -67,11 +65,12 @@ export function networkDisplay(card: PortalPersonalCard | null): PortalCardDispl
   if (monthMatch !== null) {
     parts.push(`剩余 ${monthMatch[1]} 个月`);
   }
-  if (statusMatch !== null) {
+  // “正常”是默认态，占位置又没信息量；异常状态才展示。
+  if (statusMatch !== null && statusMatch[1] !== '正常') {
     parts.push(statusMatch[1]);
   }
   return {
-    value: `${moneyText(balance)}元`,
+    value: `¥${moneyText(balance)}`,
     sub: parts.length > 0 ? parts.join(' · ') : '校园网'
   };
 }

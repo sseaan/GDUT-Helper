@@ -53,14 +53,32 @@ export class PortalService {
     let library: PortalPersonalCard | null = findCard(cards, '图书借阅');
     let network: PortalPersonalCard | null = findCard(cards, '校园网');
 
+    // 三张详情卡互不依赖，并发取；串行会让首屏多等两三个往返。
+    const jobs: Promise<PortalPersonalCard>[] = [];
+    const slots: number[] = [];
     if (campusCard !== null && campusCard.needRetrieve) {
-      campusCard = await PortalService.detailOr(campusCard);
+      jobs.push(PortalService.detailOr(campusCard));
+      slots.push(1);
     }
     if (library !== null && library.needRetrieve) {
-      library = await PortalService.detailOr(library);
+      jobs.push(PortalService.detailOr(library));
+      slots.push(2);
     }
     if (network !== null && network.needRetrieve) {
-      network = await PortalService.detailOr(network);
+      jobs.push(PortalService.detailOr(network));
+      slots.push(3);
+    }
+    if (jobs.length > 0) {
+      const resolved: PortalPersonalCard[] = await Promise.all(jobs);
+      for (let index = 0; index < resolved.length; index++) {
+        if (slots[index] === 1) {
+          campusCard = resolved[index];
+        } else if (slots[index] === 2) {
+          library = resolved[index];
+        } else {
+          network = resolved[index];
+        }
+      }
     }
 
     const dashboard: PortalDashboard = {

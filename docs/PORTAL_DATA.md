@@ -533,6 +533,10 @@ https://oas.gdut.edu.cn/seeyon/newsData.do?method=newsIndex&boardId={boardId}
 
 ## 6. 接入建议（HarmonyOS）
 
+> 展示层已于 M8 改版：校园卡 / 图书借阅 / 校园网三项改成「三列数字」卡片，
+> 金额统一 `¥12.00`、借阅副标题「到期 0 · 超期 0」、校园网副标题不再展示「正常」。
+
+
 ### 6.1 服务划分
 
 建议新增：
