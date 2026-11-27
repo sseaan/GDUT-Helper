@@ -139,6 +139,38 @@ export class JxfwClient {
       body, `${JXFW_BASE}/xskccjxx!xskccjList.action?firstquery=1`);
   }
 
+  /** 选课列表（`xsxklist` 模块，开放选课时段才会有数据）。 */
+  async fetchSelectionCourses(page: number, rows: number, keyword: string): Promise<string> {
+    const body: string[] = [
+      'sort=kcrwdm',
+      'order=asc',
+      `page=${page}`,
+      `rows=${rows}`
+    ];
+    if (keyword.length > 0) {
+      body.push('searchKey=kcmc');
+      body.push(`searchValue=${encodeURIComponent(keyword)}`);
+    }
+    return this.request(http.RequestMethod.POST, `${JXFW_BASE}/xsxklist!getDataList.action`,
+      body.join('&'), `${JXFW_BASE}/xsxklist!xsmhxsxk.action`);
+  }
+
+  /** 单门课程的排课明细（周次 / 星期 / 节次 / 地点 / 教师）。 */
+  async fetchSelectionLessons(kcrwdm: string): Promise<string> {
+    const code: string = encodeURIComponent(kcrwdm);
+    return this.request(http.RequestMethod.GET,
+      `${JXFW_BASE}/xsxklist!getJxrlDataList.action?kcrwdm=${code}`, '',
+      `${JXFW_BASE}/xsxklist!viewJxrl.action?kcrwdm=${code}`);
+  }
+
+  /** 提交选课。成功返回 `1`，失败返回中文原因；未登录时返回登录页触发自动重登。 */
+  async submitSelection(kcrwdm: string, kcmc: string): Promise<string> {
+    const body: string =
+      `kcrwdm=${encodeURIComponent(kcrwdm)}&kcmc=${encodeURIComponent(kcmc)}`;
+    return this.request(http.RequestMethod.POST, `${JXFW_BASE}/xsxklist!getAdd.action`,
+      body, `${JXFW_BASE}/xsxklist!xsmhxsxk.action`);
+  }
+
   async fetchAllLessons(term: string): Promise<JxfwLesson[]> {
     return JxfwParser.parseLessons(await this.fetchAllKb(term));
   }

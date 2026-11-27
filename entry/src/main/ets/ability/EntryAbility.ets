@@ -7,6 +7,7 @@ import { WidgetSnapshotService } from '../services/widget/WidgetSnapshotService'
 import { AppearanceSettings } from '../state/AppearanceSettings';
 import { DisplaySettings } from '../state/DisplaySettings';
 import { ClockTicker } from '../state/ClockTicker';
+import { SelectionEngine } from '../services/selection/SelectionEngine';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'GDUTHelper';
@@ -47,6 +48,7 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     hilog.info(DOMAIN, TAG, '%{public}s', 'EntryAbility onForeground');
+    SelectionEngine.onAppForeground();
     ClockTicker.bump();
     ReminderService.refreshIfEnabled(this.context).catch(() => {});
     SystemCalendarSyncService.refreshIfEnabled(this.context).catch(() => {});
@@ -55,5 +57,6 @@ export default class EntryAbility extends UIAbility {
 
   onBackground(): void {
     hilog.info(DOMAIN, TAG, '%{public}s', 'EntryAbility onBackground');
+    SelectionEngine.onAppBackground(this.context);
   }
 }

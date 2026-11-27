@@ -2,7 +2,7 @@ import { relationalStore } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 
 const DATABASE_NAME: string = 'gdut_helper.db';
-const DATABASE_VERSION: number = 4;
+const DATABASE_VERSION: number = 5;
 
 /**
  * Single RDB entry point. M1 uses versioned schema creation; future migrations
@@ -43,6 +43,10 @@ export class Database {
     if (store.version < 4) {
       await Database.migrateV4(store);
       store.version = 4;
+    }
+    if (store.version < 5) {
+      await Database.migrateV5(store);
+      store.version = 5;
     }
     return store;
   }
@@ -147,5 +151,56 @@ export class Database {
     await store.executeSql(
       "ALTER TABLE course_exceptions ADD COLUMN source TEXT NOT NULL DEFAULT 'MANUAL'"
     );
+  }
+
+  /** v5: 选课任务 / 抢课队列 / 运行日志。 */
+  private static async migrateV5(store: relationalStore.RdbStore): Promise<void> {
+    await store.executeSql(
+      `CREATE TABLE IF NOT EXISTS selection_task (
+        id INTEGER PRIMARY KEY,
+        term_code TEXT NOT NULL DEFAULT '',
+        start_at INTEGER NOT NULL DEFAULT 0,
+        interval_ms INTEGER NOT NULL DEFAULT 500,
+        priority_mode INTEGER NOT NULL DEFAULT 1,
+        auto_retry INTEGER NOT NULL DEFAULT 1,
+        sync_after INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'IDLE',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`
+    );
+    await store.executeSql(
+      `CREATE TABLE IF NOT EXISTS selection_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        kcrwdm TEXT NOT NULL,
+        kcmc TEXT NOT NULL,
+        teacher TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT '',
+        capacity INTEGER NOT NULL DEFAULT 0,
+        chosen INTEGER NOT NULL DEFAULT 0,
+        position INTEGER NOT NULL DEFAULT 0,
+        state TEXT NOT NULL DEFAULT 'PENDING',
+        last_message TEXT NOT NULL DEFAULT '',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL
+      )`
+    );
+    await store.executeSql(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_selection_queue_code ON selection_queue(kcrwdm)'
+    );
+    await store.executeSql(
+      `CREATE TABLE IF NOT EXISTS selection_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        at INTEGER NOT NULL,
+        kcrwdm TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        outcome TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        rtt_ms INTEGER NOT NULL DEFAULT 0
+      )`
+    );
+    await store.executeSql('CREATE INDEX IF NOT EXISTS idx_selection_log_at ON selection_logs(at)');
   }
 }

@@ -87,6 +87,22 @@ xnxqdm=<term>&jhlxdm=&page=1&rows=100&sort=xnxqdm&order=asc
 
 `GradeService` 最多拉 10 页并按 `term|code|name` 去重；GPA 只统计有绩点且通过（绩点 > 0 或分数 ≥ 60）的课程。
 
+### 2.3 选课（xsxklist）
+
+| 功能 | 方法 | 端点 | 说明 |
+|---|---|---|---|
+| 可选课程 | POST | `/xsxklist!getDataList.action` | `sort=kcrwdm&order=asc&page=1&rows=20`，可选 `searchKey=kcmc&searchValue=<kw>`；返回 `{ rows: [] }` |
+| 节次详情 | GET | `/xsxklist!getJxrlDataList.action?kcrwdm=<id>` | 返回数组，字段 `jxbmc/xnxqmc/zc/xq/jcdm2/zdjxcdmc/zdgnqmc/teaxms/jxhjmc` |
+| 提交选课 | POST | `/xsxklist!getAdd.action` | `kcrwdm=<id>&kcmc=<name>`；成功返回纯文本 `1`，失败返回中文原因 |
+
+字段与坑：
+
+- 课程行：`kcrwdm`（课程任务代码，提交键）、`kcmc`、`teaxm`、`kcflmc`、`jxbrs`（已选）、`pkrs`（容量）；
+- 提交结果按文案分类：`选课人数超出`（满员）、`上课时间有冲突`、`您已经选了该门课程`（视为成功）、
+  `超出选课要求门数`、`当前不是选课时间`；
+- 未登录时三个端点都返回 **200 + 登录页 HTML**（含 `使用统一认证中心登录`），必须按内容判定而不是状态码；
+- 选课只在开放时段返回数据，其余时段列表为空或返回 `rows: []`。
+
 ## 3. 空教室 jwcwx
 
 基址：`https://jwcwx.gdut.edu.cn`。认证与 jxfw 共用 CAS，但需要单独建立 jwcwx 的 `JSESSIONID`。

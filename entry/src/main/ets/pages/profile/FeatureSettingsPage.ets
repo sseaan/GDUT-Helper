@@ -47,6 +47,7 @@ export struct FeatureSettingsPage {
   @StorageLink('campusNewsEnabled') campusNewsEnabled: boolean = true;
   @StorageLink('campusDataEnabled') campusDataEnabled: boolean = true;
   @StorageLink('localNotificationsEnabled') localNotificationsEnabled: boolean = false;
+  @StorageLink('selectionEnabled') selectionEnabled: boolean = true;
 
   aboutToAppear(): void {
     LocalNotificationService.load(this.context());
@@ -168,6 +169,17 @@ export struct FeatureSettingsPage {
               onToggle: (value: boolean) => {
                 this.campusNewsEnabled = value;
                 DisplaySettings.setCampusNewsEnabled(this.context(), value);
+              }
+            })
+            Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
+            FeatureToggleRow({
+              icon: $r('sys.symbol.list_bullet_square_fill'),
+              title: '选课助手',
+              detail: '在「更多服务」中显示选课入口：查课、冲突预检与定时抢课',
+              isOn: this.selectionEnabled,
+              onToggle: (value: boolean) => {
+                this.selectionEnabled = value;
+                DisplaySettings.setSelectionEnabled(this.context(), value);
               }
             })
           }

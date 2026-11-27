@@ -1,4 +1,5 @@
 import { Course, CourseException, Event, Period, Semester } from '../../domain/model/TimetableModels';
+import { SelectionQueueItem, SelectionTask } from '../selection/SelectionModels';
 
 export interface BackupTombstone {
   semesterId: string;
@@ -13,6 +14,7 @@ export interface BackupSettings {
   campusNewsEnabled?: boolean;
   campusDataEnabled?: boolean;
   localNotificationsEnabled?: boolean;
+  selectionEnabled?: boolean;
   themeColorId?: string;
   materialLevel?: number;
 }
@@ -32,6 +34,8 @@ export interface BackupBundle {
   grades: string;
   tzcs: string;
   settings: BackupSettings;
+  selectionTask?: SelectionTask | null;
+  selectionQueue?: SelectionQueueItem[];
 }
 
 export interface BackupPreview {

@@ -22,8 +22,10 @@ import { AppearancePage } from './profile/AppearancePage';
 import { FeatureSettingsPage } from './profile/FeatureSettingsPage';
 import { DataBackupPage } from './profile/DataBackupPage';
 import { AboutPage } from './profile/AboutPage';
-import { PlaceholderPage } from './common/PlaceholderPage';
+import { MoreServicesPage } from './campus/MoreServicesPage';
 import { EmptyClassroomPage } from './classroom/EmptyClassroomPage';
+import { SelectionPage } from './selection/SelectionPage';
+import { SelectionTaskPage } from './selection/SelectionTaskPage';
 import { GradesPage } from './grades/GradesPage';
 import { PhysicalTestPage } from './physical/PhysicalTestPage';
 import { TzcsLoginPage } from './physical/TzcsLoginPage';
@@ -67,10 +69,6 @@ struct Index {
 
   private rootTitleBar(): Record<string, Object> {
     return immersiveTitleBar(this.tabTitles[this.currentTab]);
-  }
-
-  private openPlaceholder(title: string): void {
-    this.stack.pushPathByName('placeholder', title);
   }
 
   onThemeColorChange(): void {
@@ -142,6 +140,19 @@ struct Index {
       DataBackupPage()
     } else if (name === 'about') {
       AboutPage()
+    } else if (name === 'more-services') {
+      MoreServicesPage({
+        onOpenSync: () => this.stack.pushPathByName('sync', null),
+        onOpenLibrary: () => this.stack.pushPathByName('library', null),
+        onOpenSelection: () => this.stack.pushPathByName('selection', null),
+      })
+    } else if (name === 'selection') {
+      SelectionPage({
+        onOpenSync: () => this.stack.pushPathByName('sync', null),
+        onOpenTask: () => this.stack.pushPathByName('selection-task', null)
+      })
+    } else if (name === 'selection-task') {
+      SelectionTaskPage()
     } else if (name === 'grades') {
       GradesPage({ onOpenSync: () => this.stack.pushPathByName('sync', null) })
     } else if (name === 'physical') {
@@ -165,8 +176,6 @@ struct Index {
         param: param as CourseEditParam,
         onDone: () => this.stack.pop()
       })
-    } else if (name === 'placeholder') {
-      PlaceholderPage({ title: param as string })
     }
   }
 
@@ -190,11 +199,10 @@ struct Index {
             onOpenClassroom: () => this.stack.pushPathByName('classroom', null),
             onOpenGrades: () => this.stack.pushPathByName('grades', null),
             onOpenPhysical: () => this.stack.pushPathByName('physical', null),
-            onOpenPlaceholder: (title: string) => this.openPlaceholder(title),
+            onOpenMoreServices: () => this.stack.pushPathByName('more-services', null),
             onOpenSync: () => this.stack.pushPathByName('sync', null),
             onOpenCampusNews: () => this.stack.pushPathByName('campus-news', null),
-            onOpenNewsArticle: (url: string) => this.stack.pushPathByName('news-detail', url),
-            onOpenLibrary: () => this.stack.pushPathByName('library', null)
+            onOpenNewsArticle: (url: string) => this.stack.pushPathByName('news-detail', url)
           })
         }.tabBar(this.tabIcon(3))
 

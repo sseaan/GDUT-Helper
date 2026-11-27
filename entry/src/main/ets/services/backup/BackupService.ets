@@ -15,11 +15,13 @@ import { TzcsCacheService } from '../tzcs/TzcsCache';
 import { WidgetSnapshotService } from '../widget/WidgetSnapshotService';
 import { JwcwxCache } from '../jwcwx/JwcwxCache';
 import { BackupBundle, BackupSettings, BackupTombstone } from './BackupModels';
+import { SelectionQueueItem, SelectionTask } from '../selection/SelectionModels';
+import { SelectionRepository } from '../selection/SelectionRepository';
 import { relationalStore } from '@kit.ArkData';
 
 const FORMAT: string = 'gdut-helper-backup';
 const VERSION: number = 2;
-const SCHEMA_VERSION: number = 4;
+const SCHEMA_VERSION: number = 5;
 const MAX_BACKUP_BYTES: number = 20 * 1024 * 1024;
 
 function readText(uri: string): string {
@@ -83,6 +85,8 @@ interface BackupCanonical {
   grades: string;
   tzcs: string;
   settings: BackupSettings;
+  selectionTask: SelectionTask | null;
+  selectionQueue: SelectionQueueItem[];
 }
 
 function canonicalJson(bundle: BackupBundle): string {
@@ -99,7 +103,9 @@ function canonicalJson(bundle: BackupBundle): string {
     tombstones: bundle.tombstones,
     grades: bundle.grades,
     tzcs: bundle.tzcs,
-    settings: bundle.settings
+    settings: bundle.settings,
+    selectionTask: bundle.selectionTask ?? null,
+    selectionQueue: bundle.selectionQueue ?? []
   };
   return JSON.stringify(payload);
 }
@@ -124,6 +130,12 @@ function migrateBundle(raw: BackupBundle): BackupBundle {
   }
   if (typeof bundle.tzcs !== 'string') {
     bundle.tzcs = '';
+  }
+  if (bundle.selectionTask === undefined) {
+    bundle.selectionTask = null;
+  }
+  if (!Array.isArray(bundle.selectionQueue)) {
+    bundle.selectionQueue = [];
   }
   if (bundle.settings === undefined || bundle.settings === null) {
     bundle.settings = {
@@ -159,6 +171,10 @@ function migrateBundle(raw: BackupBundle): BackupBundle {
   if (bundle.settings.localNotificationsEnabled !== undefined &&
     typeof bundle.settings.localNotificationsEnabled !== 'boolean') {
     bundle.settings.localNotificationsEnabled = false;
+  }
+  if (bundle.settings.selectionEnabled !== undefined &&
+    typeof bundle.settings.selectionEnabled !== 'boolean') {
+    bundle.settings.selectionEnabled = true;
   }
   if (typeof bundle.settings.themeColorId !== 'string') {
     bundle.settings.themeColorId = 'harmony';
@@ -210,6 +226,7 @@ export class BackupService {
     const campusNews = await displayStore.get('campusNewsEnabled', true);
     const campusData = await displayStore.get('campusDataEnabled', true);
     const localNotifications = await displayStore.get('localNotificationsEnabled', false);
+    const selectionEnabled = await displayStore.get('selectionEnabled', true);
     const settings: BackupSettings = {
       themeMode: typeof modeValue === 'string' ? modeValue : ThemeMode.SYSTEM,
       immersiveEnabled: immersive === true,
@@ -218,6 +235,7 @@ export class BackupService {
       campusNewsEnabled: campusNews !== false,
       campusDataEnabled: campusData !== false,
       localNotificationsEnabled: localNotifications === true,
+      selectionEnabled: selectionEnabled !== false,
       themeColorId: typeof themeColorId === 'string' ? themeColorId : 'harmony',
       materialLevel: materialLevel === 0 || materialLevel === 1 || materialLevel === 2 ? materialLevel : 10
     };
@@ -235,7 +253,9 @@ export class BackupService {
       tombstones: tombstones,
       grades: await prefString(context, 'grade_cache', 'grades'),
       tzcs: await prefString(context, 'tzcs_cache', 'reports'),
-      settings: settings
+      settings: settings,
+      selectionTask: await SelectionRepository.findTask(context),
+      selectionQueue: await SelectionRepository.listQueue(context)
     };
   }
 
@@ -312,6 +332,7 @@ export class BackupService {
 
   static async clearLocalData(context: common.UIAbilityContext): Promise<void> {
     await TimetableRepository.clearAllData(context);
+    await SelectionRepository.clearAll(context);
     await GradeService.clearCache(context);
     await TzcsCacheService.clear(context);
     await JwcwxCache.clear(context);
@@ -347,6 +368,14 @@ export class BackupService {
       for (const tombstone of bundle.tombstones) {
         await TimetableRepository.addTombstone(context, tombstone.semesterId, tombstone.courseKey);
       }
+      await SelectionRepository.clearAll(context);
+      const selectionTask: SelectionTask | null = bundle.selectionTask ?? null;
+      if (selectionTask !== null) {
+        await SelectionRepository.saveTask(context, selectionTask);
+      }
+      for (const item of bundle.selectionQueue ?? []) {
+        await SelectionRepository.importQueueItem(context, item);
+      }
       await store.commit();
     } catch (error) {
       await store.rollBack();
@@ -367,6 +396,7 @@ export class BackupService {
     await DisplaySettings.setCampusNewsEnabled(context, bundle.settings.campusNewsEnabled !== false);
     await DisplaySettings.setCampusDataEnabled(context, bundle.settings.campusDataEnabled !== false);
     await DisplaySettings.setLocalNotificationsEnabled(context, bundle.settings.localNotificationsEnabled === true);
+    await DisplaySettings.setSelectionEnabled(context, bundle.settings.selectionEnabled !== false);
     await AppearanceSettings.setThemeColor(context, bundle.settings.themeColorId ?? 'harmony');
     await AppearanceSettings.setMaterialLevel(context, bundle.settings.materialLevel ?? 10);
     try {
