@@ -48,6 +48,7 @@ export struct FeatureSettingsPage {
   @StorageLink('campusDataEnabled') campusDataEnabled: boolean = true;
   @StorageLink('localNotificationsEnabled') localNotificationsEnabled: boolean = false;
   @StorageLink('selectionEnabled') selectionEnabled: boolean = true;
+  @StorageLink('electricityEnabled') electricityEnabled: boolean = false;
 
   aboutToAppear(): void {
     LocalNotificationService.load(this.context());
@@ -55,6 +56,39 @@ export struct FeatureSettingsPage {
 
   private context(): common.UIAbilityContext {
     return this.getUIContext().getHostContext() as common.UIAbilityContext;
+  }
+
+  /**
+   * 电费查询还在 Beta 阶段，开启前先弹免责声明；取消则把开关回滚。
+   * 这里先把状态置 true 让 Toggle 跟着手指走，确认后才落盘。
+   */
+  private confirmElectricity(): void {
+    this.electricityEnabled = true;
+    this.getUIContext().showAlertDialog({
+      title: '电费查询 · Beta',
+      message: '接口由电表服务商（电精灵）提供，目前仍是 Beta 功能。\n\n' +
+        '· 接口可能随时调整或中断，数值仅供参考；\n' +
+        '· 请求以明文 HTTP 发出，内容为校区与电表表号；\n' +
+        '· 表号保存在本机，余额只留在内存、不写入备份；\n' +
+        '· 查询结果仅供参考，请以电表读数和缴费记录为准。\n\n' +
+        '是否开启电费查询？',
+      autoCancel: false,
+      buttons: [
+        {
+          value: '取消',
+          action: () => {
+            this.electricityEnabled = false;
+          }
+        },
+        {
+          value: '同意并开启',
+          action: () => {
+            this.electricityEnabled = true;
+            DisplaySettings.setElectricityEnabled(this.context(), true);
+          }
+        }
+      ]
+    });
   }
 
   private toast(message: string): void {
@@ -180,6 +214,21 @@ export struct FeatureSettingsPage {
               onToggle: (value: boolean) => {
                 this.selectionEnabled = value;
                 DisplaySettings.setSelectionEnabled(this.context(), value);
+              }
+            })
+            Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
+            FeatureToggleRow({
+              icon: $r('sys.symbol.bolt'),
+              title: '电费查询（Beta）',
+              detail: '在「更多服务」中显示宿舍电费卡片；Beta 阶段仍在适配中，可能不稳定',
+              isOn: this.electricityEnabled,
+              onToggle: (value: boolean) => {
+                if (value) {
+                  this.confirmElectricity();
+                  return;
+                }
+                this.electricityEnabled = false;
+                DisplaySettings.setElectricityEnabled(this.context(), false);
               }
             })
           }

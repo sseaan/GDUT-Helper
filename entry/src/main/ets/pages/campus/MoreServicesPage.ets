@@ -31,6 +31,7 @@ export struct MoreServicesPage {
   @StorageLink('clockTick') @Watch('onClockTick') clockTick: number = 0;
   @StorageLink('campusDataEnabled') @Watch('onCampusDataToggle') campusDataEnabled: boolean = true;
   @StorageLink('selectionEnabled') selectionEnabled: boolean = true;
+  @StorageLink('electricityEnabled') electricityEnabled: boolean = false;
   @StorageLink('jxfwSessionRevision') @Watch('onSessionRevision') sessionRevision: number = 0;
   @State campusValue: string = '--';
   @State campusSub: string = '未获取';
@@ -194,6 +195,44 @@ export struct MoreServicesPage {
     .onClick(() => this.onOpenLibrary())
   }
 
+  /** 电费查询：Beta 阶段，带 Beta 角标，默认不在卡片区展示。 */
+  @Builder
+  electricityServiceCard() {
+    Column({ space: 6 }) {
+      Row({ space: 6 }) {
+        SymbolGlyph($r('sys.symbol.bolt'))
+          .fontSize(24)
+          .fontColor([this.brandTextColor])
+        Text('Beta')
+          .fontSize(9)
+          .fontColor(this.brandTextColor)
+          .padding({ left: 5, right: 5, top: 1, bottom: 1 })
+          .borderRadius(6)
+          .border({ width: 0.5, color: this.brandTextColor })
+      }
+      .width('100%')
+
+      Text('电费查询')
+        .fontSize(AppTheme.FONT_TITLE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+        .maxLines(1)
+      Text('宿舍电表余额与用电量')
+        .fontSize(AppTheme.FONT_TINY)
+        .fontColor(AppTheme.TEXT_SECONDARY)
+        .maxLines(2)
+        .lineHeight(15)
+    }
+    .width('100%')
+    .height(118)
+    .padding(14)
+    .backgroundColor(AppTheme.CARD_BG)
+    .borderRadius(AppTheme.CARD_RADIUS)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Center)
+    .onClick(() => this.onOpenElectricity())
+  }
+
   build() {
     HdsNavDestination() {
       Scroll() {
@@ -250,6 +289,24 @@ export struct MoreServicesPage {
             .layoutWeight(1)
           }
           .width('100%')
+
+          if (this.electricityEnabled) {
+            Row({ space: AppTheme.SPACE_MD }) {
+              Column() {
+                this.electricityServiceCard()
+              }
+              .layoutWeight(1)
+              Column()
+                .layoutWeight(1)
+            }
+            .width('100%')
+
+            Text('电费查询为 Beta 功能，仍在适配中，结果仅供参考；可在「功能设置」中关闭。')
+              .fontSize(AppTheme.FONT_TINY)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .lineHeight(17)
+          }
 
           if (this.selectionEnabled) {
             Text('选课按教务的开放时段与名额规则执行；请遵守学校选课规定。')

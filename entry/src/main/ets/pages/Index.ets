@@ -30,6 +30,7 @@ import { FeatureSettingsPage } from './profile/FeatureSettingsPage';
 import { DataBackupPage } from './profile/DataBackupPage';
 import { AboutPage } from './profile/AboutPage';
 import { MoreServicesPage } from './campus/MoreServicesPage';
+import { PowerPage } from './electric/PowerPage';
 import { EmptyClassroomPage } from './classroom/EmptyClassroomPage';
 import { SelectionPage } from './selection/SelectionPage';
 import { SelectionTaskPage } from './selection/SelectionTaskPage';
@@ -202,12 +203,15 @@ struct Index {
         onOpenSync: () => this.stack.pushPathByName('sync', null),
         onOpenLibrary: () => this.stack.pushPathByName('library', null),
         onOpenSelection: () => this.stack.pushPathByName('selection', null),
+        onOpenElectricity: () => this.stack.pushPathByName('electricity', null)
       })
     } else if (name === 'selection') {
       SelectionPage({
         onOpenSync: () => this.stack.pushPathByName('sync', null),
         onOpenTask: () => this.stack.pushPathByName('selection-task', null)
       })
+    } else if (name === 'electricity') {
+      PowerPage()
     } else if (name === 'selection-task') {
       SelectionTaskPage()
     } else if (name === 'grades') {

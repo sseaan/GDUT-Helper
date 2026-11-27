@@ -15,6 +15,8 @@ export interface BackupSettings {
   campusDataEnabled?: boolean;
   localNotificationsEnabled?: boolean;
   selectionEnabled?: boolean;
+  /** 电费查询（Beta，第三方接口），默认关闭。 */
+  electricityEnabled?: boolean;
   themeColorId?: string;
   materialLevel?: number;
 }

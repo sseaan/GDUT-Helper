@@ -176,6 +176,10 @@ function migrateBundle(raw: BackupBundle): BackupBundle {
     typeof bundle.settings.selectionEnabled !== 'boolean') {
     bundle.settings.selectionEnabled = true;
   }
+  if (bundle.settings.electricityEnabled !== undefined &&
+    typeof bundle.settings.electricityEnabled !== 'boolean') {
+    bundle.settings.electricityEnabled = false;
+  }
   if (typeof bundle.settings.themeColorId !== 'string') {
     bundle.settings.themeColorId = 'harmony';
   }
@@ -227,6 +231,7 @@ export class BackupService {
     const campusData = await displayStore.get('campusDataEnabled', true);
     const localNotifications = await displayStore.get('localNotificationsEnabled', false);
     const selectionEnabled = await displayStore.get('selectionEnabled', true);
+    const electricityEnabled = await displayStore.get('electricityEnabled', false);
     const settings: BackupSettings = {
       themeMode: typeof modeValue === 'string' ? modeValue : ThemeMode.SYSTEM,
       immersiveEnabled: immersive === true,
@@ -236,6 +241,7 @@ export class BackupService {
       campusDataEnabled: campusData !== false,
       localNotificationsEnabled: localNotifications === true,
       selectionEnabled: selectionEnabled !== false,
+      electricityEnabled: electricityEnabled === true,
       themeColorId: typeof themeColorId === 'string' ? themeColorId : 'harmony',
       materialLevel: materialLevel === 0 || materialLevel === 1 || materialLevel === 2 ? materialLevel : 10
     };
@@ -397,6 +403,7 @@ export class BackupService {
     await DisplaySettings.setCampusDataEnabled(context, bundle.settings.campusDataEnabled !== false);
     await DisplaySettings.setLocalNotificationsEnabled(context, bundle.settings.localNotificationsEnabled === true);
     await DisplaySettings.setSelectionEnabled(context, bundle.settings.selectionEnabled !== false);
+    await DisplaySettings.setElectricityEnabled(context, bundle.settings.electricityEnabled === true);
     await AppearanceSettings.setThemeColor(context, bundle.settings.themeColorId ?? 'harmony');
     await AppearanceSettings.setMaterialLevel(context, bundle.settings.materialLevel ?? 10);
     try {

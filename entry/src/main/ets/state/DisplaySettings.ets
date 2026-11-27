@@ -6,6 +6,7 @@ export const CAMPUS_NEWS_ENABLED_KEY: string = 'campusNewsEnabled';
 export const CAMPUS_DATA_ENABLED_KEY: string = 'campusDataEnabled';
 export const LOCAL_NOTIFICATIONS_ENABLED_KEY: string = 'localNotificationsEnabled';
 export const SELECTION_ENABLED_KEY: string = 'selectionEnabled';
+export const ELECTRICITY_ENABLED_KEY: string = 'electricityEnabled';
 const STORE_NAME: string = 'display_settings';
 
 /** Display-only preferences shared by Profile and the timetable. */
@@ -35,6 +36,12 @@ export class DisplaySettings {
     return value === undefined ? true : value;
   }
 
+  /** 电费查询（Beta，第三方接口），默认关闭。 */
+  static electricityEnabled(): boolean {
+    const value: boolean | undefined = AppStorage.get<boolean>(ELECTRICITY_ENABLED_KEY);
+    return value === undefined ? false : value;
+  }
+
   static async load(context: common.Context): Promise<void> {
     try {
       const store = await preferences.getPreferences(context, STORE_NAME);
@@ -48,12 +55,15 @@ export class DisplaySettings {
       AppStorage.setOrCreate(LOCAL_NOTIFICATIONS_ENABLED_KEY, localNotifications === true);
       const selection = await store.get(SELECTION_ENABLED_KEY, true);
       AppStorage.setOrCreate(SELECTION_ENABLED_KEY, selection !== false);
+      const electricity = await store.get(ELECTRICITY_ENABLED_KEY, false);
+      AppStorage.setOrCreate(ELECTRICITY_ENABLED_KEY, electricity === true);
     } catch (error) {
       AppStorage.setOrCreate(SHOW_COURSE_CONTENT_KEY, false);
       AppStorage.setOrCreate(CAMPUS_NEWS_ENABLED_KEY, true);
       AppStorage.setOrCreate(CAMPUS_DATA_ENABLED_KEY, true);
       AppStorage.setOrCreate(LOCAL_NOTIFICATIONS_ENABLED_KEY, false);
       AppStorage.setOrCreate(SELECTION_ENABLED_KEY, true);
+      AppStorage.setOrCreate(ELECTRICITY_ENABLED_KEY, false);
     }
   }
 
@@ -92,4 +102,10 @@ export class DisplaySettings {
     await store.flush();
   }
 
+  static async setElectricityEnabled(context: common.Context, value: boolean): Promise<void> {
+    AppStorage.setOrCreate(ELECTRICITY_ENABLED_KEY, value);
+    const store = await preferences.getPreferences(context, STORE_NAME);
+    await store.put(ELECTRICITY_ENABLED_KEY, value);
+    await store.flush();
+  }
 }
