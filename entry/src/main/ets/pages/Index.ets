@@ -28,6 +28,7 @@ import { ProfilePage } from './profile/ProfilePage';
 import { AppearancePage } from './profile/AppearancePage';
 import { FeatureSettingsPage } from './profile/FeatureSettingsPage';
 import { DataBackupPage } from './profile/DataBackupPage';
+import { CalDavPage } from './profile/CalDavPage';
 import { AboutPage } from './profile/AboutPage';
 import { MoreServicesPage } from './campus/MoreServicesPage';
 import { PowerPage } from './electric/PowerPage';
@@ -195,7 +196,9 @@ struct Index {
     } else if (name === 'library-login') {
       LibraryLoginPage({ onDone: () => this.stack.pop() })
     } else if (name === 'data-backup') {
-      DataBackupPage()
+      DataBackupPage({ onOpenCalDav: () => this.stack.pushPathByName('caldav', null) })
+    } else if (name === 'caldav') {
+      CalDavPage()
     } else if (name === 'about') {
       AboutPage()
     } else if (name === 'more-services') {

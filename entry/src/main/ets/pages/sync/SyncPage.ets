@@ -7,6 +7,7 @@ import { Semester } from '../../domain/model/TimetableModels';
 import { SyncPlan } from '../../domain/model/SyncPlan';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { TimetableSyncService } from '../../services/sync/TimetableSyncService';
+import { CalDavSyncService } from '../../services/caldav/CalDavSyncService';
 import { SyncSettings } from '../../services/sync/SyncSettings';
 import { AutoSyncService } from '../../services/sync/AutoSyncService';
 import { JxfwSession } from '../../services/jxfw/JxfwSession';
@@ -337,6 +338,8 @@ export struct SyncPage {
       const summary: SyncSummary =
         await TimetableSyncService.applyFullSync(this.context(), saved, this.plan);
       this.result = this.summaryText(summary, false);
+      // 课表变了就顺手刷新 CalDAV 镜像；失败不影响同步结果。
+      CalDavSyncService.pushIfEnabled(this.context());
       this.lastFull = this.formatNow();
       await SyncSettings.set(this.context(), 'last_full', this.lastFull);
       await SyncSettings.set(this.context(), 'last_result', this.result);

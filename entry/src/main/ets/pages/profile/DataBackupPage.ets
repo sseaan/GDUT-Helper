@@ -20,6 +20,7 @@ interface PreviewLine {
 export struct DataBackupPage {
   @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
   @Consume('brandColor') brandColor: string = '#0A59F7';
+  onOpenCalDav: () => void = () => {};
   @State busy: boolean = false;
   @State error: string = '';
   @State status: string = '';
@@ -406,7 +407,7 @@ export struct DataBackupPage {
             .width('100%')
             .padding({ left: 6, top: 2 })
           Column() {
-            this.actionRow($r('sys.symbol.doc_plaintext'), '导出 JSON 备份', '学期、课程、日程、缓存和偏好设置', () => this.exportBackup())
+            this.actionRow($r('sys.symbol.doc_plaintext'), '导出 JSON 备份', '学期、课程、日程、选课队列、缓存和偏好设置', () => this.exportBackup())
             Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
             this.actionRow($r('sys.symbol.arrow_clockwise'), '从 JSON 恢复', '先预览数据数量和覆盖范围，再确认恢复', () => this.pickRestore())
             Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
@@ -426,6 +427,9 @@ export struct DataBackupPage {
             .padding({ left: 6, top: 2 })
           Column() {
             this.actionRow($r('sys.symbol.calendar'), '导出 ICS 课程表', '当前学期的课程、考试和日程，可导入系统日历或其他日历应用', () => this.exportIcs())
+            Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
+            this.actionRow($r('sys.symbol.arrow_clockwise'), '同步到日历（CalDAV）',
+              '把课表镜像到你自己的 Radicale / Nextcloud 日历', () => this.onOpenCalDav())
           }
           .width('100%')
           .backgroundColor($r('app.color.profile_card_bg'))
