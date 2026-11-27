@@ -709,7 +709,7 @@ export struct ProfilePage {
           SettingsRow({
             icon: $r('sys.symbol.info_circle'),
             label: '关于工大助手',
-            value: '1.1.0',
+            value: '1.2.0',
             showChevron: true,
             onTap: () => this.onOpenAbout()
           })

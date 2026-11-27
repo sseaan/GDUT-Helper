@@ -116,7 +116,7 @@ export struct AboutPage {
                   .fontSize(24)
                   .fontWeight(FontWeight.Bold)
                   .fontColor(AppTheme.TEXT_PRIMARY)
-                Text('v1.1.0')
+                Text('v1.2.0')
                   .fontSize(AppTheme.FONT_TINY)
                   .fontColor(AppTheme.TEXT_SECONDARY)
                   .padding({ left: 7, right: 7, top: 3, bottom: 3 })
@@ -139,7 +139,7 @@ export struct AboutPage {
 
           this.sectionLabel('版本与更新')
           Column() {
-            this.infoRow('检查更新', '1.1.0', '当前已是最新版本', true, () => this.toast('当前已是最新版本'))
+            this.infoRow('检查更新', '1.2.0', '当前已是最新版本', true, () => this.toast('当前已是最新版本'))
             Divider().color(AppTheme.DIVIDER).opacity(0.5).margin({ left: 16, right: 16 })
             this.infoRow('项目主页', '', 'GitHub · sseaan/GDUT-Helper', true, () => this.openProject())
           }

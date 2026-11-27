@@ -6,11 +6,11 @@
 
 **广东工业大学 · HarmonyOS NEXT 校园助手**
 
-课表 · 日历 · 校园服务 · 图书馆 · 成绩 · 空教室
+课表 · 日历 · 校园服务 · 图书馆 · 成绩 · 空教室 · 选课
 
 [![HarmonyOS NEXT](https://img.shields.io/badge/HarmonyOS-NEXT-0A59F7?logo=harmonyos&logoColor=white)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![API](https://img.shields.io/badge/API-23%2B-2FB89A)](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/)
-[![Version](https://img.shields.io/badge/version-1.1.0-black)](https://github.com/sseaan/GDUT-Helper/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-black)](https://github.com/sseaan/GDUT-Helper/releases)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Build unsigned HAP](https://github.com/sseaan/GDUT-Helper/actions/workflows/build-unsigned.yml/badge.svg)](https://github.com/sseaan/GDUT-Helper/actions/workflows/build-unsigned.yml)
 
@@ -25,10 +25,11 @@
 - 原生统一认证登录教务，同步课表、考试、成绩和学期；
 - 课表、今日、日历、空教室联动，支持单周停课/调课；
 - 校园新闻、校园卡、图书借阅、校园网余额集中查看；
-- 内置图书馆 OPAC，可查看当前借阅和可借额度；
+- 选课助手：查可选课程、课表冲突预检、定时抢课与结果通知；
+- 内置图书馆 OPAC，可查看当前借阅和可借额度，并按书名/作者/索书号/ISBN 检索馆藏；
 - 不依赖自建服务端，账号密码只保存在系统安全存储。
 
-> 当前版本：`1.1.0`<br>
+> 当前版本：`1.2.0`<br>
 > 最低兼容：HarmonyOS 6.1.0（API 23）<br>
 > 开发/测试环境：API 26 / Mate 80 Pro Max 模拟器 / SGT-AL10
 
@@ -39,16 +40,20 @@
 | **今日** | 今日课程、下一节课、本周课程概览、跨天自动刷新 |
 | **课表** | 周课表、单周停课/调课、手动课程、考试/日程、课程详情 |
 | **日历** | 月视图 / 周视图、课程与考试标记、日期高亮移动、新建课程/日程 |
-| **校园** | 校园新闻、校园数据、成绩/GPA、体测、空教室、图书馆 OPAC |
-| **我的** | 姓名/头像、主题模式、三套主题色、沉浸光感强度、本地通知、数据备份 |
+| **校园** | 校园新闻、成绩/GPA、体测、空教室、更多服务（校园数据、图书馆 OPAC 与馆藏检索、选课助手、电费查询 Beta） |
+| **我的** | 姓名/头像、扫码入口、主题模式、三套主题色、沉浸光感强度、本地通知、数据备份 |
 
 其他能力：
 
 - 统一认证 CAS 原生登录，支持自动重登；
-- 图书馆 CAS → 超星 passport → `jwt` 原生会话；
+- 我的页扫码入口：链接用系统浏览器打开、ISBN 直接查馆藏、其他内容可复制或搜索；
+- 图书馆 CAS → 超星 passport → `jwt` 原生会话，馆藏检索走 OPAC 公开目录；
 - 系统日历同步：标题为课程/日程名，备注为 `地点 · 教师 · GDUT Helper`；
 - 本地通知：同步完成等即时提醒，不依赖代理提醒能力；
+- 选课助手：课程搜索、节次详情、本地课表冲突预检、抢课队列、定时提交与运行日志；
 - 数据迁移：JSON 备份/恢复、ICS 导出、ICS/XLSX 导入；
+- 日历镜像：把课表单向同步到自建 CalDAV（Radicale / Nextcloud），增量推送、可清空远端；
+- 电费查询（Beta）：宿舍电表余额与月账单，接口由电表服务商提供，默认关闭并需确认免责声明；
 - 沉浸光感：跟随系统 / 精致 / 柔和 / 流畅；
 - 桌面课程卡片与今日卡片；
 - GitHub Actions 构建 unsigned HAP，下载后本地签名再侧载。
@@ -160,7 +165,9 @@ entry/src/main/ets/
 | [`AGENT.md`](AGENT.md) | 开发记录、架构、发版检查清单 |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | 设计基线：底栏、材质、图标、动效 |
 | [`docs/PORTAL_DATA.md`](docs/PORTAL_DATA.md) | 融合门户与校园新闻接口 |
-| [`docs/LIBRARY_API.md`](docs/LIBRARY_API.md) | 图书馆 OPAC 登录与接口 |
+| [`docs/LIBRARY_API.md`](docs/LIBRARY_API.md) | 图书馆 OPAC 登录、馆藏检索与册信息接口 |
+| [`docs/ELECTRICITY.md`](docs/ELECTRICITY.md) | 电精灵电表查询链路与实测坑位 |
+| [`docs/CALDAV.md`](docs/CALDAV.md) | CalDAV / Radicale 实测矩阵与实现约定 |
 | [`docs/API_EXPLORATION.md`](docs/API_EXPLORATION.md) | 教务/空教室/体测接口调研 |
 | [`docs/SIGNING.md`](docs/SIGNING.md) | 签名与侧载说明 |
 
