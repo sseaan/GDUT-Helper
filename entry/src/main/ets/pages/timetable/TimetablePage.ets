@@ -22,6 +22,7 @@ import {
   weekOf,
   parseIsoDate
 } from '../../domain/timetable/TimetableEngine';
+import { contentSignature } from '../../common/RenderKey';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { DisplaySettings } from '../../state/DisplaySettings';
 
@@ -101,6 +102,43 @@ export struct TimetablePage {
     }
     this.expanded = expandWeek(this.courses, this.exceptions, this.week);
     this.conflicts = detectConflicts(this.expanded);
+    this.refreshSelectedCourse();
+  }
+
+  /**
+   * 课块 key 必须包含会渲染出来的字段：ArkUI 只按 key diff，
+   * 只用课程 ID 会导致改教室/教师/时间后课表不刷新。
+   */
+  private blockKey(course: ExpandedCourse): string {
+    const content: string = this.showCourseContent ? course.content : '';
+    const signature: number = contentSignature([
+      course.name, course.room, course.teacher, content,
+      `${course.weekday}`, `${course.startPeriod}`, `${course.endPeriod}`, `${course.colorKey}`,
+      course.isException ? '1' : '0', this.isPastCourse(course) ? '1' : '0'
+    ]);
+    return `${course.courseId}-${course.exceptionId}-${signature}`;
+  }
+
+  /** 编辑课程后课块会被重建，已打开的详情 Sheet 也要跟着换成新数据。 */
+  private refreshSelectedCourse(): void {
+    if (this.selectedCourse === null) {
+      return;
+    }
+    const courseId: string = this.selectedCourse.courseId;
+    const exceptionId: string = this.selectedCourse.exceptionId;
+    let updated: ExpandedCourse | null = null;
+    for (const course of this.expanded) {
+      if (course.courseId === courseId && course.exceptionId === exceptionId) {
+        updated = course;
+        break;
+      }
+    }
+    if (updated === null) {
+      this.selectedCourse = null;
+      this.showCourseSheet = false;
+      return;
+    }
+    this.selectedCourse = updated;
   }
 
   private previousWeek(): void {
@@ -296,7 +334,7 @@ export struct TimetablePage {
 
       ForEach(this.coursesForDay(day), (course: ExpandedCourse) => {
         this.courseBlock(course)
-      }, (course: ExpandedCourse) => `${course.courseId}-${course.exceptionId}`)
+      }, (course: ExpandedCourse) => this.blockKey(course))
     }
     .layoutWeight(1)
     .height(DEFAULT_PERIOD_TIMES.length * this.rowHeight)

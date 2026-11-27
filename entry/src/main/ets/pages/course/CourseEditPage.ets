@@ -28,6 +28,8 @@ export struct CourseEditPage {
   @State createdAt: number = 0;
   @State note: string = '';
   @State content: string = '';
+  /** 保留原课程来源：编辑同步课程不应把它变成 MANUAL。 */
+  @State source: string = 'MANUAL';
   @State loading: boolean = true;
   @State saving: boolean = false;
 
@@ -59,6 +61,9 @@ export struct CourseEditPage {
           this.note = course.note;
           this.content = course.content;
           this.createdAt = course.createdAt;
+          if (course.source.length > 0) {
+            this.source = course.source;
+          }
         }
       } else if (this.param.sourceCourseId !== undefined && this.param.sourceCourseId.length > 0) {
         const source: Course | null =
@@ -163,7 +168,7 @@ export struct CourseEditPage {
         colorKey: this.colorKey,
         content: this.content,
         note: this.note.trim(),
-        source: 'MANUAL',
+        source: this.source,
         createdAt: this.createdAt,
         updatedAt: 0
       };
@@ -357,6 +362,16 @@ export struct CourseEditPage {
           .backgroundColor(AppTheme.CARD_BG)
           .borderRadius(AppTheme.CARD_RADIUS)
           .alignItems(HorizontalAlign.Start)
+
+          this.sectionTitle($r('app.string.course_content'))
+          TextArea({ text: this.content, placeholder: '教务同步的授课内容，可手动补充或修改' })
+            .height(80)
+            .backgroundColor(AppTheme.CARD_BG)
+            .borderRadius(AppTheme.CARD_RADIUS)
+            .padding(AppTheme.CARD_PADDING)
+            .onChange((value: string) => {
+              this.content = value;
+            })
 
           this.sectionTitle($r('app.string.course_note'))
           TextArea({ text: this.note, placeholder: $r('app.string.course_note_hint') })

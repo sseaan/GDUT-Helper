@@ -18,6 +18,7 @@ import {
 import { DEFAULT_PERIOD_TIMES } from '../../domain/model/Periods';
 import { expandWeek, isCourseEndedOn, isoDate, parseIsoDate, weekOf } from '../../domain/timetable/TimetableEngine';
 import { TimetableRepository } from '../../data/TimetableRepository';
+import { contentSignature } from '../../common/RenderKey';
 import { AgendaItem, AgendaKind, agendaForDate } from '../../domain/agenda/AgendaEngine';
 
 interface CalendarCell {
@@ -218,6 +219,16 @@ export struct CalendarPage {
 
   private selectedExams(): Event[] {
     return this.examsForDate(this.selectedDate());
+  }
+
+  /** Agenda 用内容指纹做 key，避免改课地点/教师后日程列表仍显示旧值。 */
+  private agendaKey(item: AgendaItem): string {
+    const ended: string = item.course !== null && this.isEnded(item.course) ? '1' : '0';
+    const signature: number = contentSignature([
+      item.title, item.subtitle, item.location, `${item.startTime}`, `${item.endTime}`,
+      item.kind, `${item.colorKey}`, ended
+    ]);
+    return `${item.id}-${signature}`;
   }
 
   private agenda(): AgendaItem[] {
@@ -837,7 +848,7 @@ export struct CalendarPage {
                 } else if (item.event !== null) {
                   this.examCard(item.event)
                 }
-              }, (item: AgendaItem) => item.id)
+              }, (item: AgendaItem) => this.agendaKey(item))
             } else {
               Text(this.semester === null
                 ? $r('app.string.today_no_semester_title') : $r('app.string.calendar_empty_title'))

@@ -42,21 +42,32 @@ export class TimetableSyncService {
     }
 
     let startDate: string = '';
-    let weekData: JxfwWeek | null = null;
-    // Always fetch week 1 so a freshly selected term gets its real start date.
+    // Week 1 is always fetched so a freshly selected term gets its real start date.
+    const weekPool: Map<number, JxfwWeek> = new Map<number, JxfwWeek>();
     try {
-      weekData = await client.fetchWeekData(term, 1);
-      startDate = JxfwParser.firstMonday(weekData);
+      const firstWeek: JxfwWeek = await client.fetchWeekData(term, 1);
+      weekPool.set(1, firstWeek);
+      startDate = JxfwParser.firstMonday(firstWeek);
     } catch (error) {
-      weekData = null;
+      // Start date falls back to the stored semester value.
     }
     const currentWeek: number = weekOf(semester.startDate, new Date());
-    const contentWeek: number = currentWeek >= 1 && currentWeek <= semester.totalWeeks ? currentWeek : 1;
-    if (contentWeek !== 1) {
+    const contentWeeks: number[] = [];
+    const candidates: number[] = [currentWeek, currentWeek + 1, currentWeek - 1, 1];
+    for (const candidate of candidates) {
+      if (candidate < 1 || candidate > semester.totalWeeks || contentWeeks.indexOf(candidate) >= 0) {
+        continue;
+      }
+      contentWeeks.push(candidate);
+    }
+    for (const week of contentWeeks) {
+      if (weekPool.has(week)) {
+        continue;
+      }
       try {
-        weekData = await client.fetchWeekData(term, contentWeek);
+        weekPool.set(week, await client.fetchWeekData(term, week));
       } catch (error) {
-        // Week 1 content is a safe fallback when the current week is unavailable.
+        // A missing week only costs that week's 授课内容.
       }
     }
 
@@ -70,9 +81,7 @@ export class TimetableSyncService {
       remoteKeys.push(course.id);
       remoteCourses.push(course);
     }
-    if (weekData !== null) {
-      TimetableSyncService.mergeWeekContent(remoteCourses, weekData);
-    }
+    TimetableSyncService.applyWeekContent(remoteCourses, weekPool, contentWeeks);
     TimetableSyncService.assignColors(remoteCourses);
     let totalWeeks: number = 0;
     for (const course of remoteCourses) {
@@ -98,9 +107,12 @@ export class TimetableSyncService {
         existing.find((course: Course) => course.id === remote.id);
       const contentMissing: boolean = current !== undefined &&
         current.content.length === 0 && remote.content.length > 0;
+      // 教务每周的 sknrjj 会变（本周讲什么），非空时同步过来；旧值只在远端为空时保留。
+      const contentChanged: boolean = current !== undefined && remote.content.length > 0 &&
+        remote.content !== current.content;
       if (current === undefined) {
         add.push(remote);
-      } else if (!TimetableSyncService.sameCourse(current, remote) || contentMissing) {
+      } else if (!TimetableSyncService.sameCourse(current, remote) || contentMissing || contentChanged) {
         update.push({
           id: current.id,
           semesterId: current.semesterId,
@@ -112,7 +124,7 @@ export class TimetableSyncService {
           endPeriod: remote.endPeriod,
           weeks: remote.weeks,
           colorKey: remote.colorKey,
-          content: current.content.length > 0 ? current.content : remote.content,
+          content: remote.content.length > 0 ? remote.content : current.content,
           note: remote.note,
           source: 'IMPORT',
           createdAt: current.createdAt,
@@ -318,21 +330,66 @@ export class TimetableSyncService {
     };
   }
 
-  private static mergeWeekContent(courses: Course[], week: JxfwWeek): void {
-    for (const course of courses) {
-      const match: JxfwWeekLesson | undefined = week.lessons.find((lesson) => {
-        if (JxfwParser.normalizeCourseName(lesson.kcmc) !== course.name || lesson.sknrjj.length === 0) {
-          return false;
-        }
-        const periods: number[] = JxfwParser.periods(lesson.jcdm2);
-        const weekday: number = Number.parseInt(lesson.xq, 10);
-        return periods.length > 0 && weekday === course.weekday &&
-          periods[0] === course.startPeriod && periods[periods.length - 1] === course.endPeriod;
-      });
-      if (match !== undefined) {
-        course.content = match.sknrjj.trim();
+  /**
+   * 按优先级（本周 → 下周 → 第 1 周）收集每周的 sknrjj。
+   *
+   * 教务只有按周课表稳定带授课内容：全学期课表的 sknrjj 可能为空，
+   * 而某一周也可能整周没有内容（假期、未排课）。所以这里多周兜底，
+   * 每门课取第一个非空值，并且不会用空值覆盖已有内容。
+   */
+  private static applyWeekContent(courses: Course[],
+    weeks: Map<number, JxfwWeek>, order: number[]): void {
+    const ordered: JxfwWeek[] = [];
+    for (const week of order) {
+      const data: JxfwWeek | undefined = weeks.get(week);
+      if (data !== undefined && ordered.indexOf(data) < 0) {
+        ordered.push(data);
       }
     }
+    const firstWeek: JxfwWeek | undefined = weeks.get(1);
+    if (firstWeek !== undefined && ordered.indexOf(firstWeek) < 0) {
+      ordered.push(firstWeek);
+    }
+    for (const course of courses) {
+      // 本周内容优先；本周没有内容时依次退到下周、第 1 周，最后保留全学期课表里的值。
+      for (const week of ordered) {
+        const match: JxfwWeekLesson | undefined = TimetableSyncService.matchWeekLesson(course, week);
+        if (match !== undefined && match.sknrjj.length > 0) {
+          course.content = match.sknrjj.trim();
+          break;
+        }
+      }
+    }
+  }
+
+  /** 名字 + 星期 + 节次精确匹配；不中时退让到星期重叠、最后退让到同名唯一。 */
+  private static matchWeekLesson(course: Course, week: JxfwWeek): JxfwWeekLesson | undefined {
+    const sameName: JxfwWeekLesson[] = week.lessons.filter((lesson: JxfwWeekLesson) =>
+      JxfwParser.normalizeCourseName(lesson.kcmc) === course.name);
+    if (sameName.length === 0) {
+      return undefined;
+    }
+    const exact: JxfwWeekLesson | undefined = sameName.find((lesson: JxfwWeekLesson) => {
+      const periods: number[] = JxfwParser.periods(lesson.jcdm2);
+      const weekday: number = Number.parseInt(lesson.xq, 10);
+      return periods.length > 0 && weekday === course.weekday &&
+        periods[0] === course.startPeriod && periods[periods.length - 1] === course.endPeriod;
+    });
+    if (exact !== undefined) {
+      return exact;
+    }
+    const overlapping: JxfwWeekLesson | undefined = sameName.find((lesson: JxfwWeekLesson) => {
+      const periods: number[] = JxfwParser.periods(lesson.jcdm2);
+      const weekday: number = Number.parseInt(lesson.xq, 10);
+      if (periods.length === 0 || weekday !== course.weekday) {
+        return false;
+      }
+      return periods[0] <= course.endPeriod && course.startPeriod <= periods[periods.length - 1];
+    });
+    if (overlapping !== undefined) {
+      return overlapping;
+    }
+    return sameName.length === 1 ? sameName[0] : undefined;
   }
 
   /** Distinct colors for distinct course names; same course keeps one color. */

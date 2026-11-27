@@ -13,6 +13,7 @@ import {
 } from '../../domain/model/TimetableModels';
 import { DEFAULT_PERIOD_TIMES } from '../../domain/model/Periods';
 import { coursesOnDate, isCourseEndedOn, todayIso, weekOf, parseIsoDate } from '../../domain/timetable/TimetableEngine';
+import { contentSignature } from '../../common/RenderKey';
 import { TimetableRepository } from '../../data/TimetableRepository';
 import { WidgetSnapshotService } from '../../services/widget/WidgetSnapshotService';
 
@@ -186,6 +187,16 @@ export struct TodayPage {
   private courseForeground(course: ExpandedCourse): string {
     return this.isEnded(course)
       ? CoursePalette.PAST_FOREGROUND : CoursePalette.foreground(course.colorKey);
+  }
+
+  /** 与课表页一致：key 带上房间/教师/时段与「已结束」状态，否则改课不刷新。 */
+  private cardKey(course: ExpandedCourse): string {
+    const signature: number = contentSignature([
+      course.name, course.room, course.teacher,
+      `${course.weekday}`, `${course.startPeriod}`, `${course.endPeriod}`,
+      course.isException ? '1' : '0', this.isEnded(course) ? '1' : '0'
+    ]);
+    return `${course.courseId}-${course.week}-${signature}`;
   }
 
   private openCourse(course: ExpandedCourse): void {
@@ -388,7 +399,7 @@ export struct TodayPage {
 
             ForEach(this.courses, (course: ExpandedCourse) => {
               this.courseCard(course)
-            }, (course: ExpandedCourse) => `${course.courseId}-${course.week}`)
+            }, (course: ExpandedCourse) => this.cardKey(course))
           }
           .width('100%')
         } else {

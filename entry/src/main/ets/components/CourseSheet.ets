@@ -230,24 +230,22 @@ export struct CourseSheet {
         .backgroundColor(AppTheme.SHEET_CARD_BG)
         .borderRadius(20)
 
-        if (this.course.content.length > 0) {
-          Column({ space: 4 }) {
-            Text($r('app.string.course_content'))
-              .fontSize(AppTheme.FONT_CAPTION)
-              .fontColor(AppTheme.TEXT_SECONDARY)
-              .width('100%')
-            Text(this.course.content)
-              .fontSize(AppTheme.FONT_BODY)
-              .fontColor(AppTheme.TEXT_PRIMARY)
-              .lineHeight(20)
-              .width('100%')
-          }
-          .width('100%')
-          .padding(14)
-          .backgroundColor(AppTheme.SHEET_CARD_BG)
-          .borderRadius(20)
-          .alignItems(HorizontalAlign.Start)
+        Column({ space: 4 }) {
+          Text($r('app.string.course_content'))
+            .fontSize(AppTheme.FONT_CAPTION)
+            .fontColor(AppTheme.TEXT_SECONDARY)
+            .width('100%')
+          Text(this.course.content.length > 0 ? this.course.content : '教务未提供本课程的授课内容')
+            .fontSize(AppTheme.FONT_BODY)
+            .fontColor(this.course.content.length > 0 ? AppTheme.TEXT_PRIMARY : AppTheme.TEXT_TERTIARY)
+            .lineHeight(20)
+            .width('100%')
         }
+        .width('100%')
+        .padding(14)
+        .backgroundColor(AppTheme.SHEET_CARD_BG)
+        .borderRadius(20)
+        .alignItems(HorizontalAlign.Start)
 
         if (this.course.isException) {
           Column({ space: AppTheme.SPACE_SM }) {
