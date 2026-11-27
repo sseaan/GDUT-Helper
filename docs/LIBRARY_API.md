@@ -246,14 +246,157 @@ GET  /find/account/payStatus         # 支付状态
 | 首页书目列表 | GET/POST | `/find/index/bookList` |
 | 搜索联想 | GET | `/find/index/searchAssociative` |
 | 书目检索 | POST | `/find/unify/search` |
+| 高级检索 | POST | `/find/unify/advancedSearch` |
+| 检索模板 | GET | `/find/unify/getUnifyReruestBody` |
 | 书目详情 | GET | `/find/searchResultDetail/getDetail` |
 | 馆藏信息 | POST | `/find/searchResultDetail/getCatalog` |
+| 册信息（条码/状态） | POST | `/find/physical/groupitems` |
+| 按馆藏地分组 | POST | `/find/physical/groupItemsByLibCode` |
 | 借阅分析 | GET | `/find/searchResultDetail/getLoanAnalysis` |
 | 热门借阅 | POST | `/find/bookList/recordHotBookList` |
 | 新书列表 | GET | `/find/books/popularBooks` |
 | 电子书 | GET | `/find/searchResultDetail/getDuxiuEBook` |
 
-App 第一阶段建议只做：**当前借阅、历史借阅、可借额度、欠款、到期提醒**，不做完整 OPAC 检索。
+### 4.1 公开目录：检索与馆藏**不需要登录**
+
+实测（2026-11，curl 匿名请求 + 浏览器内核对）`/find/unify/search` 与
+`/find/physical/groupitems` 都不要求 `jwt`，也不需要任何 Cookie：
+
+```http
+POST https://opac.gdut.edu.cn/find/unify/search
+Content-Type: application/json;charset=UTF-8
+groupCode: 800555
+x-lang: CHI
+content-language: zh_CN
+mappingPath:
+Referer: https://opac.gdut.edu.cn/
+```
+
+```json
+{
+  "docCode": [null],
+  "litCode": [],
+  "searchField": "keyWord",
+  "searchFieldContent": "线性代数",
+  "matchMode": "2",
+  "resourceType": [], "subject": [], "discode1": [], "publisher": [],
+  "libCode": [], "locationId": [], "eCollectionIds": [], "neweCollectionIds": [],
+  "curLocationId": [], "campusId": [], "kindNo": [], "collectionName": [],
+  "author": [], "langCode": [], "countryCode": [],
+  "publishBegin": null, "publishEnd": null,
+  "coreInclude": [], "ddType": [], "verifyStatus": [], "group": [],
+  "sortField": "relevance", "sortClause": "asc",
+  "page": 1, "rows": 20,
+  "onlyOnShelf": null, "searchItems": null,
+  "newCoreInclude": [], "customSub": [], "customSub0": [],
+  "indexSearch": 1
+}
+```
+
+两个必须注意的坑：
+
+- **`docCode` 必须是 `[null]`**。写成 `["2"]` 服务端仍返回 `success: true`，但结果恒为 0 条；
+- **缺字段会被当成会话问题**：body 只带 `searchWord` 之类的自造字段时，服务端返回
+  `{"success":false,"errCode":9999,"message":"系统访问中断，请稍后再试！"}`，
+  很容易误判为“需要登录”。按上面的完整字段集发送即可匿名检索。
+
+`searchField` 支持：`keyWord`（任意词）、`title`、`author`、`isbn`、`callNo`（实测五个字段均可用）。
+`rows` 实测 50 可用；翻页用 `page` 递增，同一组条件翻页结果稳定。
+
+排序（`sortField` 实测）：
+
+| 值 | 效果 |
+|---|---|
+| `relevance` | 相关度（默认） |
+| `title_sort` | 题名序 |
+| `publishYear` | 出版年序 |
+| `in_date` | 入藏时间 |
+| `publishTime` | **无效**，服务端直接返 0 条 |
+
+`sortClause` 在 `publishYear` 上不生效（asc/desc 同序），在 `title_sort` 上生效；UI 只对外暴露字段，不暴露方向。
+`onlyOnShelf` 传 `true/false` 会让 `data.numFound` 变成 `null` 且结果为 0，**不要用**。
+
+响应：
+
+```json
+{
+  "success": true, "errCode": 200,
+  "data": {
+    "numFound": 2718,
+    "searchResult": [{
+      "recordId": 1218412,
+      "title": "线性代数. 第2版",
+      "author": "…", "publisher": "…", "publishYear": "2019",
+      "isbn": "978-7-04-039689-8", "isbns": ["…"],
+      "callNoOne": "O151.2/98",
+      "physicalCount": 3, "onShelfCountI": 3,
+      "adstract": "…", "docCode": 1
+    }],
+    "facetResult": {}, "hlResult": {}, "levelResultList": []
+  }
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `numFound` | 命中总数，用于分页 |
+| `searchResult[].recordId` | 书目记录号，馆藏查询的入参 |
+| `searchResult[].callNoOne` | 索书号 |
+| `searchResult[].physicalCount` | 馆藏册数 |
+| `searchResult[].onShelfCountI` | 在架册数 |
+| `searchResult[].adstract` | 摘要（原文拼写如此） |
+
+### 4.2 册信息（馆藏地/条码/状态）
+
+```http
+POST https://opac.gdut.edu.cn/find/physical/groupitems
+```
+
+```json
+{ "recordId": 677239, "page": 1, "rows": 50 }
+```
+
+`data` 为册数组：
+
+```json
+{
+  "itemId": 4213032,
+  "callNo": "TP311.561/M17",
+  "barcode": "A3398537",
+  "locationName": "龙洞自然科学借阅室",
+  "curLocationName": "龙洞自然科学借阅室",
+  "libName": "广东工业大学",
+  "processType": "在架",
+  "itemPolicyName": "普通",
+  "circAttr": "--",
+  "inDate": "2017-05-02",
+  "vol": "", "year": ""
+}
+```
+
+`processType` 实测取值只有两类：`在架`、`借出-应还日期:YYYY-MM-DD`，
+判断可借优先看它，`circAttr` 在该校数据里恒为 `--`。
+
+### 4.3 已接入范围
+
+`services/library/LibraryClient.ets`：
+
+- `fetchOverview()`：当前借阅 + 可借额度（**需要**登录态）；
+- `searchBooks(query, page)`：书目检索（公开目录，匿名，不依赖 `jwt`），带 5 分钟内存缓存；
+  关键字是合法 ISBN 且字段为命草时自动改走 `isbn`；
+- `fetchHoldings(recordId)`：册信息（同上）。
+
+界面：
+
+- `pages/library/LibraryPage.ets`：当前借阅 + 「馆藏检索」入口；
+- `pages/library/LibrarySearchPage.ets`：字段切换（全部/书名/作者/索书号/ISBN）、
+  排序菜单、无限滚动、最近检索（Preferences）、空/错态；“在浏览器打开”降级；
+- `pages/library/LibraryBookPage.ets`：题录 + 摘要（可展开）+ 按馆藏地分组的册信息；
+  册信息由检索页通过路由参数传入（检索结果已含题录字段，不再多拉一次）。
+
+扫码入口：我的页标题栏 → 扫到 ISBN → 直接进 `library-search`。
+
+仍未接入：续借、预约/委托、欠款支付、借阅历史分页、电子书跳转、书目聚类筛选（`facetResult`）。
 
 ## 5. 推荐接入方案
 

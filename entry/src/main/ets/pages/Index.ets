@@ -21,6 +21,9 @@ import { CampusNewsPage } from './campus/CampusNewsPage';
 import { CampusNewsDetailPage } from './campus/CampusNewsDetailPage';
 import { LibraryPage } from './library/LibraryPage';
 import { LibraryLoginPage } from './library/LibraryLoginPage';
+import { LibrarySearchPage } from './library/LibrarySearchPage';
+import { LibraryBookPage } from './library/LibraryBookPage';
+import { LibraryBook } from '../services/library/LibraryModels';
 import { ProfilePage } from './profile/ProfilePage';
 import { AppearancePage } from './profile/AppearancePage';
 import { FeatureSettingsPage } from './profile/FeatureSettingsPage';
@@ -177,7 +180,17 @@ struct Index {
     } else if (name === 'news-detail') {
       CampusNewsDetailPage({ url: param as string })
     } else if (name === 'library') {
-      LibraryPage({ onOpenLogin: () => this.stack.pushPathByName('library-login', null) })
+      LibraryPage({
+        onOpenLogin: () => this.stack.pushPathByName('library-login', null),
+        onOpenSearch: (keyword: string) => this.stack.pushPathByName('library-search', keyword)
+      })
+    } else if (name === 'library-search') {
+      LibrarySearchPage({
+        initialQuery: param as string,
+        onOpenBook: (book: LibraryBook) => this.stack.pushPathByName('library-book', book)
+      })
+    } else if (name === 'library-book') {
+      LibraryBookPage({ book: param as LibraryBook })
     } else if (name === 'library-login') {
       LibraryLoginPage({ onDone: () => this.stack.pop() })
     } else if (name === 'data-backup') {

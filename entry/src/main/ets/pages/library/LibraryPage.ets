@@ -17,6 +17,7 @@ export struct LibraryPage {
   @Consume('brandTextColor') brandTextColor: string = '#0A59F7';
   @Consume('brandColor') brandColor: string = '#0A59F7';
   onOpenLogin: () => void = () => {};
+  onOpenSearch: (keyword: string) => void = () => {};
 
   @StorageLink('jxfwSessionRevision') @Watch('onSessionRevision') sessionRevision: number = 0;
   @StorageLink('librarySessionRevision') @Watch('onLibrarySession') libraryRevision: number = 0;
@@ -24,6 +25,7 @@ export struct LibraryPage {
   @State loading: boolean = false;
   @State error: string = '';
   @State needLogin: boolean = false;
+  @State searchKeyword: string = '';
 
   aboutToAppear(): void {
     this.load(false);
@@ -85,6 +87,83 @@ export struct LibraryPage {
 
   private loanDueLabel(loan: LibraryLoan): string {
     return loan.dueDate.length > 0 ? `应还 ${loan.dueDate}` : '应还日期待定';
+  }
+
+  private submitSearch(): void {
+    const keyword: string = this.searchKeyword.trim();
+    if (keyword.length === 0) {
+      this.toast('请输入书名、作者或 ISBN');
+      return;
+    }
+    this.onOpenSearch(keyword);
+  }
+
+  @Builder
+  searchBar() {
+    Row() {
+      Row({ space: AppTheme.SPACE_SM }) {
+        SymbolGlyph($r('sys.symbol.magnifyingglass'))
+          .fontSize(17)
+          .fontColor([AppTheme.TEXT_TERTIARY])
+        TextInput({ text: this.searchKeyword, placeholder: '搜书名、作者或 ISBN' })
+          .layoutWeight(1)
+          .height(40)
+          .padding(0)
+          .fontSize(AppTheme.FONT_BODY)
+          .backgroundColor(Color.Transparent)
+          .enterKeyType(EnterKeyType.Search)
+          .onChange((value: string) => {
+            this.searchKeyword = value;
+          })
+          .onSubmit(() => {
+            this.submitSearch();
+          })
+        if (this.searchKeyword.length > 0) {
+          SymbolGlyph($r('sys.symbol.xmark'))
+            .fontSize(14)
+            .fontColor([AppTheme.TEXT_TERTIARY])
+            .padding(4)
+            .onClick(() => {
+              this.searchKeyword = '';
+            })
+        }
+        Button('检索')
+          .height(32)
+          .fontSize(AppTheme.FONT_CAPTION)
+          .backgroundColor(this.brandColor)
+          .fontColor(Color.White)
+          .onClick(() => this.submitSearch())
+      }
+      .width('100%')
+      .height(48)
+      .padding({ left: 14, right: 6 })
+      .backgroundColor(AppTheme.CARD_BG)
+      .borderRadius(24)
+    }
+    .width('100%')
+    .padding({
+      left: AppTheme.PAGE_PADDING,
+      right: AppTheme.PAGE_PADDING,
+      top: AppTheme.TALL_PAGE_TOP_INSET + 12,
+      bottom: AppTheme.SPACE_SM
+    })
+  }
+
+  @Builder
+  sectionHeader(title: string, trailing: string) {
+    Row() {
+      Text(title)
+        .fontSize(AppTheme.FONT_TITLE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppTheme.TEXT_PRIMARY)
+      Blank()
+      if (trailing.length > 0) {
+        Text(trailing)
+          .fontSize(AppTheme.FONT_TINY)
+          .fontColor(AppTheme.TEXT_TERTIARY)
+      }
+    }
+    .width('100%')
   }
 
   @Builder
@@ -217,84 +296,80 @@ export struct LibraryPage {
 
   build() {
     HdsNavDestination() {
-      Scroll() {
-        Column({ space: AppTheme.SPACE_MD }) {
-          this.headerCard()
+      Column() {
+        // 馆藏检索走 OPAC 公开目录，不依赖登录态，所以搜索栏固定在顶部常驻。
+        this.searchBar()
 
-          Row() {
-            Text('当前借阅')
-              .fontSize(AppTheme.FONT_TITLE)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(AppTheme.TEXT_PRIMARY)
-            Blank()
-            if (this.overview !== null) {
-              Text(`共 ${this.overview.total} 条`)
-                .fontSize(AppTheme.FONT_TINY)
-                .fontColor(AppTheme.TEXT_TERTIARY)
+        Scroll() {
+          Column({ space: AppTheme.SPACE_MD }) {
+            this.headerCard()
+
+            this.sectionHeader('当前借阅',
+              this.overview !== null ? `共 ${this.overview.total} 条` : '')
+
+            if (this.loading && this.overview === null) {
+              Column({ space: 8 }) {
+                LoadingProgress()
+                  .width(28)
+                  .height(28)
+                  .color(this.brandTextColor)
+                Text('正在同步图书馆…')
+                  .fontSize(AppTheme.FONT_CAPTION)
+                  .fontColor(AppTheme.TEXT_TERTIARY)
+              }
+              .width('100%')
+              .height(150)
+              .justifyContent(FlexAlign.Center)
+              .alignItems(HorizontalAlign.Center)
+              .backgroundColor(AppTheme.CARD_BG)
+              .borderRadius(AppTheme.CARD_RADIUS)
+            } else if (this.error.length > 0) {
+              this.errorCard()
+            } else if (this.overview === null || this.overview.loans.length === 0) {
+              Column({ space: 8 }) {
+                Image($r('app.media.ic_library_book'))
+                  .width(32)
+                  .height(32)
+                  .fillColor(AppTheme.TEXT_TERTIARY)
+                Text('当前没有借阅')
+                  .fontSize(AppTheme.FONT_CAPTION)
+                  .fontColor(AppTheme.TEXT_SECONDARY)
+              }
+              .width('100%')
+              .height(130)
+              .justifyContent(FlexAlign.Center)
+              .alignItems(HorizontalAlign.Center)
+              .backgroundColor(AppTheme.CARD_BG)
+              .borderRadius(AppTheme.CARD_RADIUS)
+            } else {
+              ForEach(this.overview.loans, (loan: LibraryLoan) => {
+                this.loanCard(loan)
+              }, (loan: LibraryLoan) => loan.id.length > 0 ? loan.id : `${loan.title}-${loan.dueDate}`)
             }
+
+            Text('借阅数据来自学校图书馆 OPAC；到期提醒功能后续接入。')
+              .fontSize(AppTheme.FONT_TINY)
+              .fontColor(AppTheme.TEXT_TERTIARY)
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .padding({ top: 4 })
           }
           .width('100%')
-
-          if (this.loading && this.overview === null) {
-            Column({ space: 8 }) {
-              LoadingProgress()
-                .width(28)
-                .height(28)
-                .color(this.brandTextColor)
-              Text('正在同步图书馆…')
-                .fontSize(AppTheme.FONT_CAPTION)
-                .fontColor(AppTheme.TEXT_TERTIARY)
-            }
-            .width('100%')
-            .height(150)
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .backgroundColor(AppTheme.CARD_BG)
-            .borderRadius(AppTheme.CARD_RADIUS)
-          } else if (this.error.length > 0) {
-            this.errorCard()
-          } else if (this.overview === null || this.overview.loans.length === 0) {
-            Column({ space: 8 }) {
-              Image($r('app.media.ic_library_book'))
-                .width(32)
-                .height(32)
-                .fillColor(AppTheme.TEXT_TERTIARY)
-              Text('当前没有借阅')
-                .fontSize(AppTheme.FONT_CAPTION)
-                .fontColor(AppTheme.TEXT_SECONDARY)
-            }
-            .width('100%')
-            .height(130)
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .backgroundColor(AppTheme.CARD_BG)
-            .borderRadius(AppTheme.CARD_RADIUS)
-          } else {
-            ForEach(this.overview.loans, (loan: LibraryLoan) => {
-              this.loanCard(loan)
-            }, (loan: LibraryLoan) => loan.id.length > 0 ? loan.id : `${loan.title}-${loan.dueDate}`)
-          }
-
-          Text('借阅数据来自学校图书馆 OPAC；到期提醒功能后续接入。')
-            .fontSize(AppTheme.FONT_TINY)
-            .fontColor(AppTheme.TEXT_TERTIARY)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .padding({ top: 4 })
+          .padding({
+            left: AppTheme.PAGE_PADDING,
+            right: AppTheme.PAGE_PADDING,
+            top: AppTheme.SPACE_SM,
+            bottom: AppTheme.CONTENT_BOTTOM_INSET
+          })
+          .alignItems(HorizontalAlign.Start)
         }
+        .layoutWeight(1)
         .width('100%')
-        .padding({
-          left: AppTheme.PAGE_PADDING,
-          right: AppTheme.PAGE_PADDING,
-          top: AppTheme.TALL_PAGE_TOP_INSET + 24,
-          bottom: AppTheme.CONTENT_BOTTOM_INSET
-        })
-        .alignItems(HorizontalAlign.Start)
+        .align(Alignment.TopStart)
+        .scrollBar(BarState.Off)
       }
       .width('100%')
       .height('100%')
-      .align(Alignment.TopStart)
-      .scrollBar(BarState.Off)
     }
     .titleBar(immersiveTitleBar('图书馆'))
     .titleMode(HdsNavDestinationTitleMode.MINI)
